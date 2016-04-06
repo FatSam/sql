@@ -1,0 +1,50 @@
+
+
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE VIEW [dbo].[database_index_stats]
+AS
+SELECT
+	O.object_id AS objectID,
+	S.name AS schemaName,
+	O.name AS objectName,
+	CASE
+	WHEN SI.name IS NULL THEN 'Heap'
+	ELSE SI.name
+	END AS indexName,
+	SI.type AS indexType,
+	O.is_ms_shipped,
+	FG.name AS filegroupName,
+	SP.data_compression,
+	FG.type_desc,
+	O.create_date AS tableCreated,
+	(CONVERT(DECIMAL(20,5),(PS.used_page_count)) / 
+	(SELECT SUM(used_page_count) FROM sys.dm_db_partition_stats))	* 100 AS percentOfDB,
+	CASE
+		WHEN PS.used_page_count = 0 THEN 0
+		WHEN PS.reserved_page_count = 0 THEN 0
+		ELSE (CONVERT(DECIMAL(20,5),PS.used_page_count) / CONVERT(DECIMAL(20,5),PS.reserved_page_count)) * 100
+	END AS PercentPagesFull,
+	PS.used_page_count,
+	PS.reserved_page_count,
+	ISNULL(US.user_seeks,0) AS user_seeks,
+	ISNULL(US.user_scans,0) AS user_scans,
+	ISNULL(US.user_lookups,0) AS user_lookups,
+	ISNULL(US.user_updates,0) AS user_updates,
+	((ISNULL(US.user_seeks,0) + ISNULL(US.user_scans,0) + 
+		ISNULL(US.user_lookups,0) - ISNULL(US.user_updates,0))) AS efficiency
+FROM sys.objects O
+INNER JOIN sys.schemas S ON O.schema_id = s.schema_id
+	AND O.type IN ('U','S','IT','SQ')
+INNER JOIN sys.dm_db_partition_stats PS ON O.object_id = PS.object_id
+INNER JOIN sys.partitions SP on sp.partition_id = PS.partition_id
+INNER JOIN sys.indexes SI ON PS.object_id = SI.object_id
+AND PS.index_id = SI.index_id
+INNER JOIN sys.filegroups FG
+ON SI.data_space_id = FG.data_space_id
+LEFT JOIN sys.dm_db_index_usage_stats US ON US.object_id = SI.object_id
+AND US.index_id = SI.index_id
+AND US.database_id = db_id()
