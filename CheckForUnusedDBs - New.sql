@@ -1,3 +1,15 @@
+/*
+CheckForUnusedDBs - April 6 2016
+(C) 2016, Daniel Keys Moran
+danmoran909@outlook.com
+
+To request or suggest changes email me.
+
+This is known to work on SQL Server 2012; it's been tested on no other versions.
+
+It's dependent on the view database_index_stats, available elsewhere in this repository.
+*/
+
 SELECT create_date AS restartDate FROM sys.databases where name = 'tempdb'
 SELECT GETDATE() AS rundate
 
@@ -40,7 +52,7 @@ INSERT @Results
 	databaseName,
 	sumAccesses
 	)
-SELECT ''' + QUOTENAME(@databaseName) + ''', SUM(user_scans + user_seeks + user_lookups + user_updates) FROM ' + QUOTENAME(@databaseName) + '.dbo.database_index_stats_nf
+SELECT ''' + QUOTENAME(@databaseName) + ''', SUM(user_scans + user_seeks + user_lookups + user_updates) FROM ' + QUOTENAME(@databaseName) + '.dbo.database_index_stats
 where is_ms_shipped = 0
 '
 
