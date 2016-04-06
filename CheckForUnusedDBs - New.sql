@@ -8,6 +8,8 @@ To request or suggest changes email me.
 This is known to work on SQL Server 2012; it's been tested on no other versions.
 
 It's dependent on the view database_index_stats, available elsewhere in this repository.
+
+Permissions required: sa.
 */
 
 SELECT create_date AS restartDate FROM sys.databases where name = 'tempdb'
