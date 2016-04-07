@@ -1,0 +1,44 @@
+SELECT
+'
+  myDB.TableDefs.Delete + "' + objectName + '"
+  Set tdfNew = myDB.CreateTableDef("' + objectName + '")
+  tdfNew.Connect = "ODBC;DRIVER=SQL Server Native Client 11.0;SERVER=LISTCP2MPSS;Trusted Connection=Yes;APP=Microsoft Office 2010;DATABASE=oltp;"
+  tdfNew.SourceTableName = "' + 
+  CASE
+	WHEN EXISTS (SELECT * FROM oltp.dbo.database_stats WHERE objectName = ds.objectName + '_' + db_name())
+		THEN ds.objectName + '_' + db_name()
+	ELSE
+		ds.objectName
+  END + '"
+  myDB.TableDefs.Append tdfNew'
+FROM database_stats ds
+WHERE type = 'USER_TABLE'
+	AND objectName NOT LIKE '%bkup%'
+ORDER BY ds.ObjectName
+
+/*
+' Module for relinking the tables in the source Access DBs
+
+Public Sub relinkSQL()
+
+Dim myDB As Database
+Set myDB = CurrentDb
+   
+Dim tdfNew As TableDef
+ 
+'-------- PASTE HERE
+
+	  myDB.TableDefs.Delete + "@tblDatabaseUpdateLog"
+	  Set tdfNew = myDB.CreateTableDef("@tblDatabaseUpdateLog")
+	  tdfNew.Connect = "ODBC;DRIVER=SQL Server Native Client 11.0;SERVER=LISTCP2MPSS;Trusted Connection=Yes;APP=Microsoft Office 2010;DATABASE=oltp;"
+	  tdfNew.SourceTableName = "@tblDatabaseUpdateLog"
+	  myDB.TableDefs.Append tdfNew
+
+
+'-------- END PASTE HERE
+
+myDB.Close
+
+End Sub
+
+*/
