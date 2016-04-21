@@ -1,0 +1,79 @@
+GO
+/****** Object:  StoredProcedure [dbo].[sp_RemoveServerFromWideDiscovery]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE PROCEDURE [dbo].[sp_RemoveServerFromWideDiscovery]
+	(
+    @ServerName NVARCHAR(128) = NULL
+    )
+/*
+	Object:		sp_RemoveServerFromWideDiscovery
+	Created:	4/15/2014
+	By:			dmoran@lacare.org
+	
+	Purpose:	Removes all server-related data from a deprecated database.
+				
+	Example:	EXEC dbo.sp_RemoveServerFromWideDiscovery @ServerName = 'URBAN'
+					-- Deletes individual server.
+
+*/
+AS
+BEGIN
+
+    SET NOCOUNT ON;
+	SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+	
+	DECLARE @serverID INT
+
+	IF EXISTS (SELECT serverID FROM dbo.serverList WHERE serverName = @ServerName)
+		BEGIN
+
+			SELECT @serverID = serverID 				
+			FROM dbo.serverList WHERE serverName = @ServerName
+
+			PRINT 'Found Server: ' + @ServerName
+
+			DELETE dbo.blitzResults WHERE serverID = @serverID
+			PRINT 'DELETED ' + CONVERT(VARCHAR,@@ROWCOUNT) + ' RECORDS FROM dbo.blitzResults'
+			DELETE dbo.serverJobs WHERE serverID = @serverID
+			PRINT 'DELETED ' + CONVERT(VARCHAR,@@ROWCOUNT) + ' RECORDS FROM dbo.serverJobs'
+			DELETE dbo.sysDatabase WHERE serverID = @serverID
+			PRINT 'DELETED ' + CONVERT(VARCHAR,@@ROWCOUNT) + ' RECORDS FROM dbo.sysDatabase'
+			DELETE dbo.sysDatabaseFiles WHERE serverID = @serverID
+			PRINT 'DELETED ' + CONVERT(VARCHAR,@@ROWCOUNT) + ' RECORDS FROM dbo.sysDatabaseFiles'
+			DELETE dbo.sysDatabaseMirroring WHERE serverID = @serverID
+			PRINT 'DELETED ' + CONVERT(VARCHAR,@@ROWCOUNT) + ' RECORDS FROM dbo.sysDatabaseMirroring'
+			DELETE dbo.sysDatabasePermissions WHERE serverID = @serverID
+			PRINT 'DELETED ' + CONVERT(VARCHAR,@@ROWCOUNT) + ' RECORDS FROM dbo.sysDatabasePermissions'
+			DELETE dbo.sysDmOsPerformanceCounters WHERE serverID = @serverID
+			PRINT 'DELETED ' + CONVERT(VARCHAR,@@ROWCOUNT) + ' RECORDS FROM dbo.sysDmOsPerformanceCounters'
+			DELETE dbo.sysFulltextCatalog WHERE serverID = @serverID
+			PRINT 'DELETED ' + CONVERT(VARCHAR,@@ROWCOUNT) + ' RECORDS FROM dbo.sysFulltextCatalog'
+					
+			DELETE dbo.sysLinkedLogins WHERE serverID = @serverID
+			PRINT 'DELETED ' + CONVERT(VARCHAR,@@ROWCOUNT) + ' RECORDS FROM dbo.sysLinkedLogins'
+			DELETE dbo.sysMasterFiles WHERE serverID = @serverID
+			PRINT 'DELETED ' + CONVERT(VARCHAR,@@ROWCOUNT) + ' RECORDS FROM dbo.sysMasterFiles'
+			DELETE dbo.sysServerPermissions WHERE serverID = @serverID
+			PRINT 'DELETED ' + CONVERT(VARCHAR,@@ROWCOUNT) + ' RECORDS FROM dbo.sysServerPermissions'
+			DELETE dbo.sysServerPrincipals WHERE serverID = @serverID
+			PRINT 'DELETED ' + CONVERT(VARCHAR,@@ROWCOUNT) + ' RECORDS FROM dbo.sysServerPrincipals'
+			DELETE dbo.sysSQLLogins WHERE serverID = @serverID
+			PRINT 'DELETED ' + CONVERT(VARCHAR,@@ROWCOUNT) + ' RECORDS FROM dbo.sysSQLLogins'
+			DELETE dbo.vDatabaseIndexStats WHERE serverID = @serverID
+			PRINT 'DELETED ' + CONVERT(VARCHAR,@@ROWCOUNT) + ' RECORDS FROM dbo.vDatabaseIndexStats'
+			DELETE dbo.vDatabaseStats WHERE serverID = @serverID
+			PRINT 'DELETED ' + CONVERT(VARCHAR,@@ROWCOUNT) + ' RECORDS FROM dbo.vDatabaseStats'
+
+			DELETE dbo.serverList WHERE serverID = @serverID
+			PRINT 'DELETED ' + CONVERT(VARCHAR,@@ROWCOUNT) + ' RECORDS FROM dbo.serverList'
+		END
+	ELSE
+		BEGIN
+			PRINT 'No such server found.'
+		END
+
+END
+GO
