@@ -1,0 +1,1191 @@
+/****** Object:  Table [dbo].[application]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[application](
+	[applicationID] [int] IDENTITY(1,1) NOT NULL,
+	[applicationName] [nvarchar](128) NULL,
+	[created] [datetime] NOT NULL,
+ CONSTRAINT [PK_application] PRIMARY KEY CLUSTERED 
+(
+	[applicationID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+
+GO
+/****** Object:  Table [dbo].[application_serverList_map]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[application_serverList_map](
+	[applicationServerID] [int] IDENTITY(1,1) NOT NULL,
+	[applicationID] [int] NOT NULL,
+	[serverID] [int] NOT NULL,
+	[created] [datetime] NOT NULL,
+ CONSTRAINT [PK_application_serverList_map] PRIMARY KEY CLUSTERED 
+(
+	[applicationServerID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+
+GO
+/****** Object:  Table [dbo].[BlitzResults]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+SET ANSI_PADDING ON
+GO
+CREATE TABLE [dbo].[BlitzResults](
+	[ID] [int] IDENTITY(1,1) NOT NULL,
+	[serverID] [int] NOT NULL,
+	[ServerName] [nvarchar](128) NULL,
+	[CheckDate] [datetime] NULL,
+	[BlitzVersion] [int] NULL,
+	[Priority] [tinyint] NULL,
+	[FindingsGroup] [varchar](50) NULL,
+	[Finding] [varchar](200) NULL,
+	[DatabaseName] [nvarchar](128) NULL,
+	[URL] [varchar](200) NULL,
+	[Details] [nvarchar](4000) NULL,
+	[QueryPlan] [xml] NULL,
+	[QueryPlanFiltered] [nvarchar](max) NULL,
+	[CheckID] [int] NULL,
+ CONSTRAINT [PK_507D4AC3-A2C4-48A9-B10E-0DA645C44D20] PRIMARY KEY CLUSTERED 
+(
+	[ID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
+
+GO
+SET ANSI_PADDING OFF
+GO
+/****** Object:  Table [dbo].[serverGroup]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[serverGroup](
+	[groupID] [int] IDENTITY(1,1) NOT NULL,
+	[groupName] [nvarchar](128) NOT NULL,
+	[created] [datetime] NOT NULL,
+ CONSTRAINT [PK_serverGroup] PRIMARY KEY CLUSTERED 
+(
+	[groupID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+
+GO
+/****** Object:  Table [dbo].[serverGroupServers]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[serverGroupServers](
+	[groupServerID] [int] IDENTITY(1,1) NOT NULL,
+	[groupID] [int] NOT NULL,
+	[serverName] [nvarchar](128) NOT NULL,
+	[created] [datetime] NOT NULL,
+ CONSTRAINT [PK_serverGroupServers] PRIMARY KEY CLUSTERED 
+(
+	[groupServerID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+
+GO
+/****** Object:  Table [dbo].[serverJobs]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+SET ANSI_PADDING ON
+GO
+CREATE TABLE [dbo].[serverJobs](
+	[serverJobID] [int] IDENTITY(1,1) NOT NULL,
+	[serverID] [int] NOT NULL,
+	[serverName] [nvarchar](50) NOT NULL,
+	[JobID] [uniqueidentifier] NOT NULL,
+	[JobName] [sysname] NOT NULL,
+	[JobCategory] [sysname] NULL,
+	[JobOwner] [sysname] NULL,
+	[JEnabled] [varchar](3) NULL,
+	[SEnabled] [int] NULL,
+	[JobCreatedOn] [datetime] NOT NULL,
+	[JobLastModifiedOn] [datetime] NOT NULL,
+	[OriginatingServerName] [sysname] NULL,
+	[JobStartStepNo] [int] NULL,
+	[JobStartStepName] [sysname] NULL,
+	[IsScheduled] [varchar](3) NOT NULL,
+	[JobScheduleID] [uniqueidentifier] NULL,
+	[JobScheduleName] [sysname] NULL,
+	[JobDeletionCriterion] [varchar](13) NULL,
+	[created] [datetime] NOT NULL,
+ CONSTRAINT [PK_serverJobs] PRIMARY KEY CLUSTERED 
+(
+	[serverJobID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+
+GO
+SET ANSI_PADDING OFF
+GO
+/****** Object:  Table [dbo].[serverList]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+SET ANSI_PADDING ON
+GO
+CREATE TABLE [dbo].[serverList](
+	[serverID] [int] IDENTITY(1,1) NOT NULL,
+	[serverName] [nvarchar](128) NOT NULL,
+	[linkedServerName] [nvarchar](128) NULL,
+	[serverVersion] [nvarchar](max) NULL,
+	[targetServerMemoryinMB] [bigint] NULL,
+	[totalServerMemoryInMB] [bigint] NULL,
+	[total_physical_memory_mb] [bigint] NULL,
+	[available_physical_memory_mb] [bigint] NULL,
+	[virtual_memory_mb] [bigint] NULL,
+	[total_page_file_mb] [bigint] NULL,
+	[available_page_file_mb] [bigint] NULL,
+	[system_cache_mb] [bigint] NULL,
+	[kernel_paged_pool_mb] [bigint] NULL,
+	[kernel_nonpaged_pool_mb] [bigint] NULL,
+	[system_high_memory_signal_state] [bit] NULL,
+	[system_low_memory_signal_state] [bit] NULL,
+	[system_memory_state_desc] [nvarchar](256) NULL,
+	[cpu_count] [int] NULL,
+	[hyperthread_ratio] [int] NULL,
+	[physical_memory_in_mb] [bigint] NULL,
+	[virtual_memory_in_mb] [bigint] NULL,
+	[sqlserver_start_time] [datetime] NULL,
+	[affinity_type_desc] [varchar](60) NULL,
+	[virtual_machine_type_desc] [nvarchar](60) NULL,
+	[canDelete] [int] NOT NULL,
+	[created] [datetime] NOT NULL,
+	[serverEnvironment] [varchar](3) NULL,
+	[serverStack] [varchar](4) NULL,
+	[destinationServer] [varchar](50) NULL,
+	[updated] [datetime] NULL,
+ CONSTRAINT [PK_server] PRIMARY KEY CLUSTERED 
+(
+	[serverID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
+
+GO
+SET ANSI_PADDING OFF
+GO
+/****** Object:  Table [dbo].[serverListScan]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[serverListScan](
+	[scanID] [int] IDENTITY(1,1) NOT NULL,
+	[serverID] [int] NOT NULL,
+	[startTime] [datetime] NOT NULL,
+	[endTime] [datetime] NOT NULL,
+	[timeInSeconds] [smallint] NOT NULL,
+ CONSTRAINT [PK_serverListScan] PRIMARY KEY CLUSTERED 
+(
+	[scanID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+
+GO
+/****** Object:  Table [dbo].[serverStartDate]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[serverStartDate](
+	[serverStartID] [int] IDENTITY(1,1) NOT NULL,
+	[serverID] [int] NOT NULL,
+	[startDate] [datetime] NOT NULL,
+ CONSTRAINT [PK_serverStartDate] PRIMARY KEY CLUSTERED 
+(
+	[serverStartID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+
+GO
+/****** Object:  Table [dbo].[sysDatabase]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+SET ANSI_PADDING ON
+GO
+CREATE TABLE [dbo].[sysDatabase](
+	[databaseID] [int] IDENTITY(1,1) NOT NULL,
+	[serverID] [int] NOT NULL,
+	[serverName] [nvarchar](50) NULL,
+	[name] [sysname] NOT NULL,
+	[database_id] [int] NOT NULL,
+	[source_database_id] [int] NULL,
+	[owner_sid] [varbinary](85) NULL,
+	[create_date] [datetime] NOT NULL,
+	[compatibility_level] [tinyint] NOT NULL,
+	[collation_name] [sysname] NULL,
+	[user_access] [tinyint] NULL,
+	[user_access_desc] [nvarchar](60) NULL,
+	[is_read_only] [bit] NULL,
+	[is_auto_close_on] [bit] NOT NULL,
+	[is_auto_shrink_on] [bit] NULL,
+	[state] [tinyint] NULL,
+	[state_desc] [nvarchar](60) NULL,
+	[is_in_standby] [bit] NULL,
+	[is_cleanly_shutdown] [bit] NULL,
+	[is_supplemental_logging_enabled] [bit] NULL,
+	[snapshot_isolation_state] [tinyint] NULL,
+	[snapshot_isolation_state_desc] [nvarchar](60) NULL,
+	[is_read_committed_snapshot_on] [bit] NULL,
+	[recovery_model] [tinyint] NULL,
+	[recovery_model_desc] [nvarchar](60) NULL,
+	[page_verify_option] [tinyint] NULL,
+	[page_verify_option_desc] [nvarchar](60) NULL,
+	[is_auto_create_stats_on] [bit] NULL,
+	[is_auto_update_stats_on] [bit] NULL,
+	[is_auto_update_stats_async_on] [bit] NULL,
+	[is_ansi_null_default_on] [bit] NULL,
+	[is_ansi_nulls_on] [bit] NULL,
+	[is_ansi_padding_on] [bit] NULL,
+	[is_ansi_warnings_on] [bit] NULL,
+	[is_arithabort_on] [bit] NULL,
+	[is_concat_null_yields_null_on] [bit] NULL,
+	[is_numeric_roundabort_on] [bit] NULL,
+	[is_quoted_identifier_on] [bit] NULL,
+	[is_recursive_triggers_on] [bit] NULL,
+	[is_cursor_close_on_commit_on] [bit] NULL,
+	[is_local_cursor_default] [bit] NULL,
+	[is_fulltext_enabled] [bit] NULL,
+	[is_trustworthy_on] [bit] NULL,
+	[is_db_chaining_on] [bit] NULL,
+	[is_parameterization_forced] [bit] NULL,
+	[is_master_key_encrypted_by_server] [bit] NOT NULL,
+	[is_published] [bit] NOT NULL,
+	[is_subscribed] [bit] NOT NULL,
+	[is_merge_published] [bit] NOT NULL,
+	[is_distributor] [bit] NOT NULL,
+	[is_sync_with_backup] [bit] NOT NULL,
+	[service_broker_guid] [uniqueidentifier] NOT NULL,
+	[is_broker_enabled] [bit] NOT NULL,
+	[log_reuse_wait] [tinyint] NULL,
+	[log_reuse_wait_desc] [nvarchar](60) NULL,
+	[is_date_correlation_on] [bit] NOT NULL,
+	[is_cdc_enabled] [bit] NULL,
+	[is_encrypted] [bit] NULL,
+	[is_honor_broker_priority_on] [bit] NULL,
+	[is_ms_shipped] [bit] NULL,
+	[created] [datetime] NOT NULL,
+ CONSTRAINT [PK_databaseList2] PRIMARY KEY CLUSTERED 
+(
+	[databaseID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+
+GO
+SET ANSI_PADDING OFF
+GO
+/****** Object:  Table [dbo].[sysDatabaseFiles]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[sysDatabaseFiles](
+	[fileID] [int] IDENTITY(1,1) NOT NULL,
+	[serverID] [int] NOT NULL,
+	[serverName] [nvarchar](128) NOT NULL,
+	[databaseId] [int] NOT NULL,
+	[databaseName] [nvarchar](128) NOT NULL,
+	[file_id] [int] NOT NULL,
+	[file_guid] [uniqueidentifier] NULL,
+	[type] [tinyint] NOT NULL,
+	[type_desc] [nvarchar](60) NULL,
+	[data_space_id] [int] NOT NULL,
+	[name] [sysname] NOT NULL,
+	[physical_name] [nvarchar](260) NOT NULL,
+	[state] [tinyint] NULL,
+	[state_desc] [nvarchar](60) NULL,
+	[size] [int] NOT NULL,
+	[max_size] [int] NOT NULL,
+	[freeSpace] [decimal](18, 4) NULL,
+	[growth] [int] NOT NULL,
+	[is_media_read_only] [bit] NOT NULL,
+	[is_read_only] [bit] NOT NULL,
+	[is_sparse] [bit] NOT NULL,
+	[is_percent_growth] [bit] NOT NULL,
+	[is_name_reserved] [bit] NOT NULL,
+	[create_lsn] [numeric](25, 0) NULL,
+	[drop_lsn] [numeric](25, 0) NULL,
+	[read_only_lsn] [numeric](25, 0) NULL,
+	[read_write_lsn] [numeric](25, 0) NULL,
+	[differential_base_lsn] [numeric](25, 0) NULL,
+	[differential_base_guid] [uniqueidentifier] NULL,
+	[differential_base_time] [datetime] NULL,
+	[redo_start_lsn] [numeric](25, 0) NULL,
+	[redo_start_fork_guid] [uniqueidentifier] NULL,
+	[redo_target_lsn] [numeric](25, 0) NULL,
+	[redo_target_fork_guid] [uniqueidentifier] NULL,
+	[backup_lsn] [numeric](25, 0) NULL,
+	[created] [datetime] NOT NULL,
+ CONSTRAINT [PK_sysDatabaseFiles] PRIMARY KEY CLUSTERED 
+(
+	[fileID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+
+GO
+/****** Object:  Table [dbo].[sysDatabaseMirroring]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[sysDatabaseMirroring](
+	[mirrorID] [int] IDENTITY(1,1) NOT NULL,
+	[serverID] [int] NOT NULL,
+	[serverName] [nvarchar](128) NOT NULL,
+	[databaseID] [int] NOT NULL,
+	[databaseName] [nvarchar](128) NOT NULL,
+	[database_id] [int] NOT NULL,
+	[mirroring_guid] [uniqueidentifier] NULL,
+	[mirroring_state] [tinyint] NULL,
+	[mirroring_state_desc] [nvarchar](60) NULL,
+	[mirroring_role] [tinyint] NULL,
+	[mirroring_role_desc] [nvarchar](60) NULL,
+	[mirroring_role_sequence] [int] NULL,
+	[mirroring_safety_level] [tinyint] NULL,
+	[mirroring_safety_level_desc] [nvarchar](60) NULL,
+	[mirroring_safety_sequence] [int] NULL,
+	[mirroring_partner_name] [nvarchar](128) NULL,
+	[mirroring_partner_instance] [nvarchar](128) NULL,
+	[mirroring_witness_name] [nvarchar](128) NULL,
+	[mirroring_witness_state] [tinyint] NULL,
+	[mirroring_witness_state_desc] [nvarchar](60) NULL,
+	[mirroring_failover_lsn] [numeric](25, 0) NULL,
+	[mirroring_connection_timeout] [int] NULL,
+	[mirroring_redo_queue] [int] NULL,
+	[mirroring_redo_queue_type] [nvarchar](60) NULL,
+	[mirroring_end_of_log_lsn] [numeric](25, 0) NULL,
+	[mirroring_replication_lsn] [numeric](25, 0) NULL,
+	[created] [datetime] NOT NULL,
+ CONSTRAINT [PK_sysDatabaseMirroring] PRIMARY KEY CLUSTERED 
+(
+	[mirrorID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+
+GO
+/****** Object:  Table [dbo].[sysDatabasePermissions]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+SET ANSI_PADDING ON
+GO
+CREATE TABLE [dbo].[sysDatabasePermissions](
+	[databasePermissionID] [int] IDENTITY(1,1) NOT NULL,
+	[serverID] [int] NOT NULL,
+	[serverName] [nvarchar](50) NOT NULL,
+	[class] [tinyint] NOT NULL,
+	[class_desc] [nvarchar](60) NULL,
+	[major_id] [int] NOT NULL,
+	[minor_id] [int] NOT NULL,
+	[grantee_principal_id] [int] NOT NULL,
+	[grantor_principal_id] [int] NOT NULL,
+	[type] [char](4) NOT NULL,
+	[permission_name] [nvarchar](128) NULL,
+	[state] [char](1) NOT NULL,
+	[state_desc] [nvarchar](60) NULL,
+	[created] [datetime] NOT NULL,
+ CONSTRAINT [PK_sysDatabasePermissions] PRIMARY KEY CLUSTERED 
+(
+	[databasePermissionID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+
+GO
+SET ANSI_PADDING OFF
+GO
+/****** Object:  Table [dbo].[sysDmOsPerformanceCounters]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[sysDmOsPerformanceCounters](
+	[counterID] [int] IDENTITY(1,1) NOT NULL,
+	[serverID] [int] NOT NULL,
+	[object_name] [nchar](128) NOT NULL,
+	[counter_name] [nchar](128) NOT NULL,
+	[instance_name] [nchar](128) NULL,
+	[cntr_value] [bigint] NOT NULL,
+	[cntr_type] [int] NOT NULL,
+	[created] [datetime] NOT NULL,
+ CONSTRAINT [PK_sysDmOsPerformanceCounters] PRIMARY KEY CLUSTERED 
+(
+	[counterID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+
+GO
+/****** Object:  Table [dbo].[sysFulltextCatalog]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[sysFulltextCatalog](
+	[fulltextID] [int] IDENTITY(1,1) NOT NULL,
+	[serverID] [int] NOT NULL,
+	[serverName] [nvarchar](50) NOT NULL,
+	[fulltext_catalog_id] [int] NOT NULL,
+	[name] [sysname] NOT NULL,
+	[path] [nvarchar](260) NULL,
+	[is_default] [bit] NOT NULL,
+	[is_accent_sensitivity_on] [bit] NOT NULL,
+	[data_space_id] [int] NULL,
+	[file_id] [int] NULL,
+	[principal_id] [int] NULL,
+	[is_importing] [bit] NULL,
+	[created] [datetime] NOT NULL,
+ CONSTRAINT [PK_sysFulltextCatalog] PRIMARY KEY CLUSTERED 
+(
+	[fulltextID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+
+GO
+/****** Object:  Table [dbo].[sysLinkedLogins]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[sysLinkedLogins](
+	[lloginID] [int] IDENTITY(1,1) NOT NULL,
+	[serverID] [int] NOT NULL,
+	[serverName] [nvarchar](50) NOT NULL,
+	[server_id] [int] NOT NULL,
+	[local_principal_id] [int] NULL,
+	[uses_self_credential] [bit] NOT NULL,
+	[remote_name] [sysname] NULL,
+	[modify_date] [datetime] NOT NULL,
+	[created] [datetime] NOT NULL,
+ CONSTRAINT [PK_sysLinkedLogins] PRIMARY KEY CLUSTERED 
+(
+	[lloginID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+
+GO
+/****** Object:  Table [dbo].[sysMasterFiles]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[sysMasterFiles](
+	[masterFileID] [int] IDENTITY(1,1) NOT NULL,
+	[serverID] [int] NOT NULL,
+	[serverName] [nvarchar](50) NULL,
+	[databaseID] [int] NOT NULL,
+	[databaseName] [nvarchar](128) NULL,
+	[database_id] [int] NOT NULL,
+	[file_id] [int] NOT NULL,
+	[file_guid] [uniqueidentifier] NULL,
+	[type] [tinyint] NOT NULL,
+	[type_desc] [nvarchar](60) NULL,
+	[data_space_id] [int] NOT NULL,
+	[name] [sysname] NOT NULL,
+	[physical_name] [nvarchar](260) NOT NULL,
+	[state] [tinyint] NULL,
+	[state_desc] [nvarchar](60) NULL,
+	[size] [int] NOT NULL,
+	[max_size] [int] NOT NULL,
+	[growth] [int] NOT NULL,
+	[is_media_read_only] [bit] NOT NULL,
+	[is_read_only] [bit] NOT NULL,
+	[is_sparse] [bit] NOT NULL,
+	[is_percent_growth] [bit] NOT NULL,
+	[is_name_reserved] [bit] NOT NULL,
+	[create_lsn] [numeric](25, 0) NULL,
+	[drop_lsn] [numeric](25, 0) NULL,
+	[read_only_lsn] [numeric](25, 0) NULL,
+	[read_write_lsn] [numeric](25, 0) NULL,
+	[differential_base_lsn] [numeric](25, 0) NULL,
+	[differential_base_guid] [uniqueidentifier] NULL,
+	[differential_base_time] [datetime] NULL,
+	[redo_start_lsn] [numeric](25, 0) NULL,
+	[redo_start_fork_guid] [uniqueidentifier] NULL,
+	[redo_target_lsn] [numeric](25, 0) NULL,
+	[redo_target_fork_guid] [uniqueidentifier] NULL,
+	[backup_lsn] [numeric](25, 0) NULL,
+	[created] [datetime] NOT NULL,
+ CONSTRAINT [PK_sysMasterFiles] PRIMARY KEY CLUSTERED 
+(
+	[masterFileID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+
+GO
+/****** Object:  Table [dbo].[sysServerPermissions]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+SET ANSI_PADDING ON
+GO
+CREATE TABLE [dbo].[sysServerPermissions](
+	[serverPermissionID] [int] IDENTITY(1,1) NOT NULL,
+	[serverID] [int] NOT NULL,
+	[serverName] [nvarchar](50) NOT NULL,
+	[class] [tinyint] NOT NULL,
+	[class_desc] [nvarchar](60) NULL,
+	[major_id] [int] NOT NULL,
+	[minor_id] [int] NOT NULL,
+	[grantee_principal_id] [int] NOT NULL,
+	[grantor_principal_id] [int] NOT NULL,
+	[type] [char](4) NOT NULL,
+	[permission_name] [nvarchar](128) NULL,
+	[state] [char](1) NOT NULL,
+	[state_desc] [nvarchar](60) NULL,
+	[created] [datetime] NOT NULL,
+ CONSTRAINT [PK_sysServerPermissions] PRIMARY KEY CLUSTERED 
+(
+	[serverPermissionID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+
+GO
+SET ANSI_PADDING OFF
+GO
+/****** Object:  Table [dbo].[sysServerPrincipals]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+SET ANSI_PADDING ON
+GO
+CREATE TABLE [dbo].[sysServerPrincipals](
+	[principalID] [int] IDENTITY(1,1) NOT NULL,
+	[serverID] [int] NOT NULL,
+	[serverName] [nvarchar](50) NOT NULL,
+	[name] [sysname] NOT NULL,
+	[principal_id] [int] NOT NULL,
+	[sid] [varbinary](85) NULL,
+	[type] [char](1) NOT NULL,
+	[type_desc] [nvarchar](60) NULL,
+	[is_disabled] [bit] NULL,
+	[create_date] [datetime] NOT NULL,
+	[modify_date] [datetime] NOT NULL,
+	[default_database_name] [sysname] NULL,
+	[default_language_name] [sysname] NULL,
+	[credential_id] [int] NULL,
+	[created] [datetime] NOT NULL,
+ CONSTRAINT [PK_sysServerPrincipals] PRIMARY KEY CLUSTERED 
+(
+	[principalID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+
+GO
+SET ANSI_PADDING OFF
+GO
+/****** Object:  Table [dbo].[sysSQLLogins]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+SET ANSI_PADDING ON
+GO
+CREATE TABLE [dbo].[sysSQLLogins](
+	[loginID] [int] IDENTITY(1,1) NOT NULL,
+	[serverID] [int] NOT NULL,
+	[serverName] [nvarchar](50) NOT NULL,
+	[name] [sysname] NOT NULL,
+	[principal_id] [int] NOT NULL,
+	[sid] [varbinary](85) NULL,
+	[type] [char](1) NOT NULL,
+	[type_desc] [nvarchar](60) NULL,
+	[is_disabled] [bit] NULL,
+	[create_date] [datetime] NOT NULL,
+	[modify_date] [datetime] NOT NULL,
+	[default_database_name] [sysname] NULL,
+	[default_language_name] [sysname] NULL,
+	[credential_id] [int] NULL,
+	[is_policy_checked] [bit] NULL,
+	[is_expiration_checked] [bit] NULL,
+	[password_hash] [varbinary](256) NULL,
+	[created] [datetime] NOT NULL,
+ CONSTRAINT [PK_sysSQLLogins] PRIMARY KEY CLUSTERED 
+(
+	[loginID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+
+GO
+SET ANSI_PADDING OFF
+GO
+/****** Object:  Table [dbo].[vDatabaseIndexStats]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[vDatabaseIndexStats](
+	[statsID] [int] IDENTITY(1,1) NOT NULL,
+	[serverID] [int] NOT NULL,
+	[serverName] [nvarchar](128) NOT NULL,
+	[databaseID] [int] NOT NULL,
+	[databaseName] [nvarchar](128) NOT NULL,
+	[objectID] [int] NOT NULL,
+	[schemaName] [sysname] NOT NULL,
+	[objectName] [sysname] NOT NULL,
+	[indexName] [nvarchar](128) NULL,
+	[indexType] [tinyint] NOT NULL,
+	[is_ms_shipped] [bit] NOT NULL,
+	[type_desc] [nvarchar](60) NULL,
+	[avg_fragmentation_in_percent] [float] NULL,
+	[percentOfDB] [decimal](38, 19) NULL,
+	[PercentPagesFull] [decimal](38, 14) NULL,
+	[used_page_count] [bigint] NULL,
+	[reserved_page_count] [bigint] NULL,
+	[user_seeks] [bigint] NOT NULL,
+	[user_scans] [bigint] NOT NULL,
+	[user_lookups] [bigint] NOT NULL,
+	[user_updates] [bigint] NOT NULL,
+	[efficiency] [bigint] NULL,
+	[created] [datetime] NOT NULL,
+ CONSTRAINT [PK_vDatabaseIndexStats] PRIMARY KEY CLUSTERED 
+(
+	[statsID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+
+GO
+/****** Object:  Table [dbo].[vDatabaseStats]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE TABLE [dbo].[vDatabaseStats](
+	[statsID] [int] IDENTITY(1,1) NOT NULL,
+	[serverID] [int] NOT NULL,
+	[serverName] [nvarchar](128) NOT NULL,
+	[databaseID] [int] NOT NULL,
+	[databaseName] [nvarchar](128) NOT NULL,
+	[objectID] [int] NULL,
+	[schemaName] [sysname] NULL,
+	[objectName] [nvarchar](128) NULL,
+	[type] [nvarchar](60) NULL,
+	[percentOfDB] [decimal](38, 19) NULL,
+	[PercentPagesFull] [decimal](38, 14) NULL,
+	[row_count] [bigint] NULL,
+	[primary_keys_count] [int] NULL,
+	[is_replicated] [bit] NULL,
+	[is_tran_published] [bit] NULL,
+	[is_merge_published] [bit] NULL,
+	[is_schema_published] [bit] NULL,
+	[is_ms_shipped] [bit] NULL,
+	[rowData] [bigint] NULL,
+	[lobData] [bigint] NULL,
+	[indexData] [bigint] NOT NULL,
+	[in_row_data_page_count] [bigint] NULL,
+	[in_row_used_page_count] [bigint] NULL,
+	[in_row_reserved_page_count] [bigint] NULL,
+	[lob_used_page_count] [bigint] NULL,
+	[lob_reserved_page_count] [bigint] NULL,
+	[row_overflow_used_page_count] [bigint] NULL,
+	[row_overflow_reserved_page_count] [bigint] NULL,
+	[used_page_count] [bigint] NULL,
+	[reserved_page_count] [bigint] NULL,
+	[created] [datetime] NOT NULL,
+ CONSTRAINT [PK_vDatabaseStats] PRIMARY KEY CLUSTERED 
+(
+	[statsID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+) ON [PRIMARY]
+
+GO
+/****** Object:  View [dbo].[vDatabaseSize]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE VIEW [dbo].[vDatabaseSize]
+AS
+SELECT 
+	ServerName, 
+	DatabaseName, 
+	SUM(used_page_count) AS used_page_count,
+	ROUND(SUM(used_page_count) * 8 / 1024.0, 2) AS sizeInMB
+FROM [dba].[dbo].[vDatabaseStats]
+GROUP BY ServerName, DatabaseName
+GO
+/****** Object:  View [dbo].[vServerSummary]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+
+CREATE VIEW [dbo].[vServerSummary] AS
+SELECT
+	sl.serverName
+	,'serverVersion' = REPLACE(LEFT(sl.serverVersion,CHARINDEX('-',sl.serverVersion) - 2),'Microsoft SQL Server ','')
+	--,sl.serverVersion AS serverVersionLong
+	,CASE
+		WHEN sl.serverVersion LIKE '%ENTERPRISE%' THEN 'Enterprise'
+		WHEN sl.serverVersion LIKE '%DEVELOP%' THEN 'Developer'
+		WHEN sl.serverVersion LIKE '%Datacenter%' THEN 'Datacenter'
+		WHEN sl.serverVersion LIKE '%Standard%' THEN 'Standard'
+		ELSE 'Other'
+	END AS serverEdition
+	,sl.virtual_machine_type_desc
+	,'memoryMB' = sl.total_physical_memory_mb
+	,REVERSE(REPLACE(REVERSE(CONVERT(NVARCHAR(30),
+	ROUND(
+	((sl.available_physical_memory_mb * 1.00 / total_physical_memory_mb * 1.00) * 100)
+	,2))),'0',' ')) AS percentAvailRAM
+	,cpu_count
+	,'daysUpAtDisc' = DATEDIFF(D,sl.sqlserver_start_time,sl.updated)
+	,'countDBs' = (SELECT COUNT(*) FROM dbo.sysDatabase WHERE serverID = sl.serverID)
+	,'dataGB' = (SELECT SUM(RESERVED_PAGE_COUNT) /128 FROM vDatabaseStats WHERE serverID = SL.serverID)
+	,'allocDataMB' = (SELECT SUM(size) /128 FROM dbo.sysDatabaseFiles WHERE serverID = SL.serverID AND type_desc = 'ROWS')
+	,'allocLogMB' = (SELECT SUM(size) /128 FROM dbo.sysDatabaseFiles WHERE serverID = SL.serverID AND type_desc = 'LOG')
+	,'allocDataMastMB' = (SELECT SUM(size) /128 FROM dbo.sysMasterFiles WHERE serverID = SL.serverID AND type_desc = 'ROWS')
+	,'allocLogMastMB' = (SELECT SUM(size) /128 FROM dbo.sysMasterFiles WHERE serverID = SL.serverID AND type_desc = 'LOG')
+	,ISNULL(de.reportEfficiency,-1) AS reportServer
+	,sl.serverEnvironment
+	,sl.serverStack
+FROM
+	dbo.serverList sl
+LEFT JOIN
+	(
+	SELECT 
+		sl.serverName
+		,sl.serverID
+		,SUM(abs(efficiency)) AS reportEfficiency
+	FROM serverList sl
+	INNER JOIN vDatabaseIndexStats dis ON sl.serverID = dis.serverID
+	WHERE dis.databaseName = 'ReportServer'
+		AND sl.serverEnvironment = 'C'
+	GROUP BY sl.serverName
+		, sl.serverID
+	) de ON sl.serverID = de.serverID
+
+
+
+
+
+
+GO
+/****** Object:  View [dbo].[vDatabaseReadsAndWrites]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE VIEW
+	[dbo].[vDatabaseReadsAndWrites]
+	AS
+SELECT
+    de.serverName,
+    de.databaseName,
+    (select daysUpAtDisc FROM vServerSummary WHERE serverName = de.serverName) AS daysUp,
+    de.readsAndWrites,
+	de.readsAndWrites * 1.00 / (select CASE
+									WHEN daysUpAtDisc = 0 THEN 1
+									ELSE daysUpAtDisc
+								END
+									FROM vServerSummary WHERE serverName = de.serverName)
+		AS readsAndWritesDaily,
+	vds.[used_page_count],
+	vds.sizeInMB,
+	de.serverStack,
+	de.serverEnvironment,
+	de.destinationServer
+FROM
+(
+SELECT 
+    SUM(user_seeks + user_scans + user_lookups + user_updates) AS ReadsAndWrites
+    , dis.serverName
+    , dis.databaseName
+	, sl.destinationServer
+	, sl.serverStack
+	, sl.serverEnvironment
+FROM vDatabaseIndexStats dis
+INNER JOIN serverList sl ON dis.serverID = sl.serverID
+--WHERE sl.serverEnvironment = 'C'
+GROUP BY dis.serverName
+    , dis.databaseName
+	, sl.destinationServer
+	, sl.serverStack
+	, sl.serverEnvironment
+) de
+LEFT JOIN
+	vDatabaseSize vds ON de.serverName = vds.ServerName
+		AND de.databaseName = vds.DatabaseName
+
+
+
+
+
+GO
+/****** Object:  View [dbo].[database_index_stats]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE VIEW [dbo].[database_index_stats]
+AS
+SELECT
+	O.object_id AS objectID,
+	S.name AS schemaName,
+	O.name AS objectName,
+	CASE
+	WHEN SI.name IS NULL THEN 'Heap'
+	ELSE SI.name
+	END AS indexName,
+	SI.type AS indexType,
+	O.is_ms_shipped,
+	FG.type_desc,
+	IXS.avg_fragmentation_in_percent,
+	(CONVERT(DECIMAL(20,5),(PS.used_page_count)) / 
+	(SELECT SUM(used_page_count) FROM sys.dm_db_partition_stats))	* 100 AS percentOfDB,
+	CASE
+		WHEN PS.used_page_count = 0 THEN 0
+		WHEN PS.reserved_page_count = 0 THEN 0
+		ELSE (CONVERT(DECIMAL(20,5),PS.used_page_count) / CONVERT(DECIMAL(20,5),PS.reserved_page_count)) * 100
+	END AS PercentPagesFull,
+	PS.used_page_count,
+	PS.reserved_page_count,
+	ISNULL(US.user_seeks,0) AS user_seeks,
+	ISNULL(US.user_scans,0) AS user_scans,
+
+	ISNULL(US.user_lookups,0) AS user_lookups,
+	ISNULL(US.user_updates,0) AS user_updates,
+	((ISNULL(US.user_seeks,0) + ISNULL(US.user_scans,0) + 
+		ISNULL(US.user_lookups,0) - ISNULL(US.user_updates,0))) AS efficiency
+FROM sys.objects O
+INNER JOIN sys.schemas S ON O.schema_id = s.schema_id
+	AND O.type IN ('U','S','IT','SQ')
+LEFT JOIN sys.dm_db_partition_stats PS ON O.object_id = PS.object_id
+INNER JOIN sys.indexes SI ON PS.object_id = SI.object_id
+AND PS.index_id = SI.index_id
+INNER JOIN sys.filegroups FG
+ON SI.data_space_id = FG.data_space_id
+LEFT JOIN sys.dm_db_index_usage_stats US ON US.object_id = SI.object_id
+AND US.index_id = SI.index_id
+AND US.database_id = db_id()
+LEFT JOIN sys.dm_db_index_physical_stats(DB_ID(), NULL, NULL, NULL, NULL) IXS
+ON US.object_id = IXS.object_id
+	AND US.index_id = IXS.index_id
+	AND IXS.database_id = db_id()
+	AND IXS.alloc_unit_type_desc = 'IN_ROW_DATA'
+
+GO
+/****** Object:  View [dbo].[database_index_stats_nf]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+--IF  EXISTS (SELECT * FROM sys.views WHERE object_id = OBJECT_ID(N'[dbo].[database_index_stats_nf]'))
+--DROP VIEW [dbo].[database_index_stats_nf]
+--GO
+CREATE VIEW [dbo].[database_index_stats_nf]
+AS
+SELECT
+	O.object_id AS objectID,
+	S.name AS schemaName,
+	O.name AS objectName,
+	CASE
+	WHEN SI.name IS NULL THEN 'Heap'
+	ELSE SI.name
+	END AS indexName,
+	SI.type AS indexType,
+	O.is_ms_shipped,
+	FG.type_desc,
+	-- IXS.avg_fragmentation_in_percent,
+	(CONVERT(DECIMAL(20,5),(PS.used_page_count)) / 
+	(SELECT SUM(used_page_count) FROM sys.dm_db_partition_stats))	* 100 AS percentOfDB,
+	CASE
+		WHEN PS.used_page_count = 0 THEN 0
+		WHEN PS.reserved_page_count = 0 THEN 0
+		ELSE (CONVERT(DECIMAL(20,5),PS.used_page_count) / CONVERT(DECIMAL(20,5),PS.reserved_page_count)) * 100
+	END AS PercentPagesFull,
+	PS.used_page_count,
+	PS.reserved_page_count,
+	ISNULL(US.user_seeks,0) AS user_seeks,
+	ISNULL(US.user_scans,0) AS user_scans,
+	ISNULL(US.user_lookups,0) AS user_lookups,
+	ISNULL(US.user_updates,0) AS user_updates,
+	((ISNULL(US.user_seeks,0) + ISNULL(US.user_scans,0) + 
+		ISNULL(US.user_lookups,0) - ISNULL(US.user_updates,0))) AS efficiency
+FROM sys.objects O
+INNER JOIN sys.schemas S ON O.schema_id = s.schema_id
+	AND O.type IN ('U','S','IT','SQ')
+LEFT JOIN sys.dm_db_partition_stats PS ON O.object_id = PS.object_id
+INNER JOIN sys.indexes SI ON PS.object_id = SI.object_id
+AND PS.index_id = SI.index_id
+INNER JOIN sys.filegroups FG
+ON SI.data_space_id = FG.data_space_id
+LEFT JOIN sys.dm_db_index_usage_stats US ON US.object_id = SI.object_id
+AND US.index_id = SI.index_id
+AND US.database_id = db_id()
+--LEFT JOIN sys.dm_db_index_physical_stats(DB_ID(), NULL, NULL, NULL, NULL) IXS
+--ON US.object_id = IXS.object_id
+--	AND US.index_id = IXS.index_id
+--	AND IXS.database_id = db_id()
+--	AND IXS.alloc_unit_type_desc = 'IN_ROW_DATA'
+
+GO
+/****** Object:  View [dbo].[database_stats]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE VIEW [dbo].[database_stats]
+AS
+SELECT
+	CASE
+	WHEN O2.object_ID IS NOT NULL THEN O2.object_id
+	ELSE O.object_id
+	END AS objectID,
+	CASE
+	WHEN S2.Name IS NULL THEN S.name
+	ELSE S2.name
+	END AS schemaName,
+	CASE
+	WHEN O2.object_id IS NULL THEN 
+	CASE
+	WHEN O.name = 'sysconvgroup' THEN 'sysconvgroup (conversation_groups)'
+	WHEN O.name = 'sysdesend' THEN 'sysdesend (conversation_endpoints)'
+	WHEN O.name = 'sysdercv' THEN 'sysdercv (conversation_endpoints)'
+	WHEN O.name = 'sysxmitqueue' THEN 'sysxmitqueue (transmission_queue)'
+	ELSE O.name
+	END
+	ELSE O2.name
+	END AS objectName,
+	CASE
+	WHEN O2.object_id IS NULL THEN O.type_desc
+	ELSE IT.internal_type_desc
+	END AS 'type',
+	(CONVERT(DECIMAL(20,5),(DE1.used_page_count)) / 
+	(SELECT SUM(used_page_count) FROM sys.dm_db_partition_stats)) 
+	* 100 AS percentOfDB,
+	CASE
+	WHEN DE1.used_page_count = 0 THEN 0
+	WHEN DE1.reserved_page_count = 0 THEN 0
+	ELSE (CONVERT(DECIMAL(20,5),DE1.used_page_count) / CONVERT(DECIMAL(20,5),DE1.reserved_page_count)) * 100
+	END as PercentPagesFull,
+	DE1.row_count,
+	(
+	SELECT COUNT(*) 
+	FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+	WHERE OBJECTPROPERTY(OBJECT_ID(constraint_name), 'IsPrimaryKey') = 1
+	AND table_name = o.Name
+	) AS primary_keys_count,	
+	ST.is_replicated,
+	ST.is_published AS is_tran_published,
+	ST.is_merge_published,
+	ST.is_schema_published,
+	ST.is_ms_shipped,
+	DE2.tableData - (DE1.lob_used_page_count * 8) AS rowData,
+	(DE1.lob_used_page_count * 8) AS lobData,
+	ISNULL(DE3.indexData,0) indexData,
+	DE1.in_row_data_page_count,
+	DE1.in_row_used_page_count,
+	DE1.in_row_reserved_page_count,
+	DE1.lob_used_page_count,
+	DE1.lob_reserved_page_count,
+	DE1.row_overflow_used_page_count,
+	DE1.row_overflow_reserved_page_count,
+	DE1.used_page_count,
+	DE1.reserved_page_count
+FROM
+	sys.objects O
+INNER JOIN
+	sys.schemas S ON O.schema_id = S.schema_id
+INNER JOIN
+	(
+	SELECT
+	PS1.Object_ID objectID,
+	MAX(PS1.row_count) AS row_count,
+	SUM(PS1.in_row_data_page_count) in_row_data_page_count,
+	SUM(PS1.in_row_used_page_count) in_row_used_page_count,
+	SUM(PS1.in_row_reserved_page_count) in_row_reserved_page_count,
+	SUM(PS1.lob_used_page_count) lob_used_page_count,
+	SUM(PS1.lob_reserved_page_count) lob_reserved_page_count,
+	SUM(PS1.row_overflow_used_page_count) row_overflow_used_page_count,
+	SUM(PS1.row_overflow_reserved_page_count) row_overflow_reserved_page_count,
+	SUM(PS1.used_page_count) used_page_count,
+	SUM(PS1.reserved_page_count) reserved_page_count
+	FROM 
+	sys.dm_db_partition_stats PS1
+	GROUP BY
+	OBJECT_ID
+	) DE1 ON O.object_ID = DE1.objectID
+INNER JOIN
+	(
+	SELECT
+	OBJECT_ID objectID,
+	SUM(used_page_count) * 8 AS tableData
+	FROM 
+	sys.dm_db_partition_stats PS
+	WHERE
+	index_id IN (0,1) -- Heap, Cluster
+	GROUP BY
+	OBJECT_ID
+	) DE2 ON DE1.objectID = DE2.objectID
+LEFT OUTER JOIN
+	(
+	SELECT
+	OBJECT_ID objectID,
+	SUM(used_page_count) * 8 AS indexData
+	FROM 
+	sys.dm_db_partition_stats PS
+	WHERE
+	index_id NOT IN (0,1) -- Heap, Cluster
+	GROUP BY
+	OBJECT_ID
+	) DE3 ON DE1.objectID = DE3.objectID
+LEFT OUTER JOIN
+	sys.objects O2 ON O.parent_object_id = O2.object_id
+	AND O.type = 'IT'
+LEFT OUTER JOIN
+	sys.schemas S2 ON O2.schema_id = S2.schema_id
+LEFT OUTER JOIN 
+	sys.internal_tables IT ON O.object_id = IT.object_id
+LEFT OUTER JOIN
+	sys.tables ST ON o.object_id = ST.object_id
+
+
+GO
+/****** Object:  View [dbo].[vLiveEnvironment]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+CREATE VIEW 
+[dbo].[vLiveEnvironment] AS
+SELECT *
+FROM (
+    SELECT 
+        sd.databaseName, sd.serverName, sd.size / 128.0 AS SIZE
+    FROM 
+		dbo.sysDatabaseFiles sd
+		INNER JOIN
+			dbo.serverList sl on sd.serverID = sl.serverID
+	WHERE
+		sl.serverName IN ('ALAMEDA','ALAMO','ARCADIA','ARROW','BISHOP','CALICO','DEVORE','DELMAR',
+							'FILLMORE','FRESNO','HARMONY','OPS-SQL2012',
+							'PACIFICA','PAMMI','PARKCITY','PREDGATE','SAMPI','SANJUAN','SANTAFE',
+							'SELMA','SHAREPOINTDEV','SOLARWINDS','STANTON','SUMMERLAND',
+							'SYCAMORE','TIPPY','UNION','UNONE','VACAVILLE')
+) as s
+PIVOT
+(
+    SUM(size)
+    FOR [serverName] IN (ALAMEDA,ALAMO,ARCADIA,ARROW,BISHOP,CALICO,DEVORE,DELMAR,
+							FILLMORE,FRESNO,HARMONY,[OPS-SQL2012],
+							PACIFICA,PAMMI,PARKCITY,PREDGATE,SAMPI,SANJUAN,SANTAFE,
+							SELMA,SHAREPOINTDEV,SOLARWINDS,STANTON,SUMMERLAND,
+							SYCAMORE,TIPPY,[UNION],UNONE,VACAVILLE)
+)AS PVT
+
+
+
+
+GO
+/****** Object:  View [dbo].[vPageLifeExpectancy]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE VIEW [dbo].[vPageLifeExpectancy]
+AS
+SELECT 
+	sl.serverName,
+	pc.cntr_value AS 'Page Life Expectancy'
+FROM sysDmOsPerformanceCounters pc
+INNER JOIN serverList sl ON pc.serverID = sl.serverID
+WHERE pc.object_name = 'SQLServer:Buffer Manager'
+AND pc.counter_name = 'Page life expectancy'
+
+GO
+/****** Object:  View [dbo].[vServerCacheRatio]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE VIEW [dbo].[vServerCacheRatio]
+AS
+SELECT 
+	ratio.serverID, 
+	ratio.serverName,
+	CONVERT(DECIMAL(18,2),(ratio.cntr_value * 1.00 / base.cntr_value* 1.00) * 100) AS cacheHitRatio
+  FROM
+  (
+  SELECT
+	dm.serverID,
+	s.serverName,
+	dm.cntr_value
+  FROM [dba].[dbo].[sysDmOsPerformanceCounters] dm
+  INNER JOIN [dba].[dbo].serverList s ON dm.serverID = s.serverID
+  WHERE counter_name LIKE '%Buffer cache hit ratio%'
+	AND cntr_type = 537003264
+	) ratio
+INNER JOIN
+	(
+  SELECT
+	serverID,
+	cntr_value
+  FROM [dba].[dbo].[sysDmOsPerformanceCounters]
+  WHERE counter_name LIKE '%Buffer cache hit ratio base%'
+	AND cntr_type = 1073939712
+	) base ON ratio.serverID = base.serverID
+
+GO
+ALTER TABLE [dbo].[application] ADD  CONSTRAINT [DF_application_created]  DEFAULT (getdate()) FOR [created]
+GO
+ALTER TABLE [dbo].[application_serverList_map] ADD  CONSTRAINT [DF_application_serverList_map_created]  DEFAULT (getdate()) FOR [created]
+GO
+ALTER TABLE [dbo].[serverGroup] ADD  CONSTRAINT [DF_serverGroup_created]  DEFAULT (getdate()) FOR [created]
+GO
+ALTER TABLE [dbo].[serverGroupServers] ADD  CONSTRAINT [DF_serverGroupServers_created]  DEFAULT (getdate()) FOR [created]
+GO
+ALTER TABLE [dbo].[serverJobs] ADD  CONSTRAINT [DF_serverJobs_created]  DEFAULT (getdate()) FOR [created]
+GO
+ALTER TABLE [dbo].[serverList] ADD  CONSTRAINT [DF_serverList_canDelete]  DEFAULT ((0)) FOR [canDelete]
+GO
+ALTER TABLE [dbo].[serverList] ADD  CONSTRAINT [DF_server_created]  DEFAULT (getdate()) FOR [created]
+GO
+ALTER TABLE [dbo].[sysDatabase] ADD  CONSTRAINT [DF_databaseList2_created]  DEFAULT (getdate()) FOR [created]
+GO
+ALTER TABLE [dbo].[sysDatabaseFiles] ADD  CONSTRAINT [DF_sysDatabaseFiles_created]  DEFAULT (getdate()) FOR [created]
+GO
+ALTER TABLE [dbo].[sysDatabaseMirroring] ADD  CONSTRAINT [DF_sysDatabaseMirroring_created]  DEFAULT (getdate()) FOR [created]
+GO
+ALTER TABLE [dbo].[sysDatabasePermissions] ADD  CONSTRAINT [DF_sysDatabasePermissions_created]  DEFAULT (getdate()) FOR [created]
+GO
+ALTER TABLE [dbo].[sysDmOsPerformanceCounters] ADD  CONSTRAINT [DF_sysdmOsPerformanceCounters_created]  DEFAULT (getdate()) FOR [created]
+GO
+ALTER TABLE [dbo].[sysFulltextCatalog] ADD  CONSTRAINT [DF_sysFulltextCatalog_created]  DEFAULT (getdate()) FOR [created]
+GO
+ALTER TABLE [dbo].[sysLinkedLogins] ADD  CONSTRAINT [DF_sysLinkedLogins_created]  DEFAULT (getdate()) FOR [created]
+GO
+ALTER TABLE [dbo].[sysMasterFiles] ADD  CONSTRAINT [DF_sysMasterFiles_created]  DEFAULT (getdate()) FOR [created]
+GO
+ALTER TABLE [dbo].[sysServerPermissions] ADD  CONSTRAINT [DF_sysServerPermissions_created]  DEFAULT (getdate()) FOR [created]
+GO
+ALTER TABLE [dbo].[sysServerPrincipals] ADD  CONSTRAINT [DF_sysServerPrincipals_created]  DEFAULT (getdate()) FOR [created]
+GO
+ALTER TABLE [dbo].[sysSQLLogins] ADD  CONSTRAINT [DF_sysSQLLogins_created]  DEFAULT (getdate()) FOR [created]
+GO
+ALTER TABLE [dbo].[vDatabaseIndexStats] ADD  CONSTRAINT [DF_vDatabaseIndexStats_created]  DEFAULT (getdate()) FOR [created]
+GO
+ALTER TABLE [dbo].[vDatabaseStats] ADD  CONSTRAINT [DF_vDatabaseStats_created]  DEFAULT (getdate()) FOR [created]
+GO
