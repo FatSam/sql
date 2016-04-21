@@ -1,0 +1,1312 @@
+/****** Object:  StoredProcedure [dbo].[sp_WideDiscovery]    Script Date: 4/8/2016 1:50:48 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+CREATE PROCEDURE [dbo].[sp_WideDiscovery]
+	(
+    @ServerName NVARCHAR(128) = NULL,
+    @ServerGroup NVARCHAR(128) = NULL,
+	@GetDaysUp BIT = 0
+    )
+/*
+	Object:		sp_WideDiscovery
+	Created:	1/28/2014
+	By:			dmoran@lacare.org
+	
+	Purpose:	Collects server metrics via linked server and stores them in the local
+				'dba' database.
+				
+	Example:	EXEC dbo.sp_WideDiscovery
+					-- Gets all servers defined with links.
+				
+				EXEC dbo.sp_WideDiscovery @ServerName = 'UNONE'
+					-- Gets individual server.
+
+				-- Trizetto
+				EXEC dbo.sp_WideDiscovery @ServerName = 'Decatur'
+				EXEC dbo.sp_WideDiscovery @ServerName = 'PUTMA'
+				EXEC dbo.sp_WideDiscovery @ServerName = 'TONOPAH'
+
+				EXEC dbo.sp_WideDiscovery @ServerGroup = 'QNXTReplProduction', @ServerName = 'TURLOCK'
+					-- Raises an error stating that the query can't proceed.
+*/
+AS
+BEGIN
+
+    SET NOCOUNT ON;
+	SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+	
+	DECLARE @Now DATETIME
+	SELECT @Now = GETDATE()
+
+	DECLARE @SQL NVARCHAR(MAX)
+	DECLARE @Y INT = 1
+	DECLARE @linkedServerName NVARCHAR(128)
+	DECLARE @linkedDatabaseName NVARCHAR(128)
+	DECLARE @linkedDatabaseID INT
+	DECLARE @serverID INT
+	DECLARE @serverVersion INT
+
+	DECLARE @tblDatabaseList TABLE
+		(
+		ID INT IDENTITY(1,1),
+		databaseID INT,
+		database_id INT,
+		databaseName NVARCHAR(128)
+		)
+
+	IF @ServerName IS NOT NULL AND @ServerGroup IS NOT NULL
+		BEGIN
+			SELECT 'Error' = 'Use only ServerGroup or ServerName. Proc cannot handle both.'
+			RETURN
+		END
+
+	IF @ServerName IS NOT NULL
+		BEGIN
+			-- Cleanup
+			IF EXISTS (SELECT serverID FROM dbo.serverList WHERE serverName = @ServerName)
+				BEGIN
+
+					SELECT @serverID = serverID 				
+					FROM dbo.serverList WHERE serverName = @ServerName
+
+					DELETE dbo.blitzResults WHERE serverID = @serverID
+					DELETE dbo.serverJobs WHERE serverID = @serverID
+					DELETE dbo.sysDatabase WHERE serverID = @serverID
+					DELETE dbo.sysDatabaseFiles WHERE serverID = @serverID
+					DELETE dbo.sysDatabaseMirroring WHERE serverID = @serverID
+					DELETE dbo.sysDatabasePermissions WHERE serverID = @serverID
+					DELETE dbo.sysDmOsPerformanceCounters WHERE serverID = @serverID
+					DELETE dbo.sysFulltextCatalog WHERE serverID = @serverID
+					
+					DELETE dbo.sysLinkedLogins WHERE serverID = @serverID
+					DELETE dbo.sysMasterFiles WHERE serverID = @serverID
+					DELETE dbo.sysServerPermissions WHERE serverID = @serverID
+					DELETE dbo.sysServerPrincipals WHERE serverID = @serverID
+					DELETE dbo.sysSQLLogins WHERE serverID = @serverID
+					DELETE dbo.vDatabaseIndexStats WHERE serverID = @serverID
+					DELETE dbo.vDatabaseStats WHERE serverID = @serverID
+				END
+			ELSE
+				BEGIN
+					INSERT serverList(serverName, linkedServerName) 
+					SELECT DISTINCT data_source, name FROM sys.servers
+					WHERE data_source = @ServerName
+						AND name LIKE 'DISCOVERY%'
+
+					SELECT @serverID = SCOPE_IDENTITY()
+				END
+
+		END
+
+	--IF @ServerGroup IS NOT NULL
+	--BEGIN
+	--	INSERT serverList(serverName, linkedServerName) 
+	--		SELECT DISTINCT ss.data_source, ss.name FROM sys.servers ss
+	--		INNER JOIN dbo.serverGroupServers sgs ON ss.data_source = sgs.serverName
+	--		INNER JOIN dbo.serverGroup sg on sgs.groupID = sg.groupID
+	--		WHERE 
+	--			sg.groupName = @ServerGroup AND
+	--			ss.name LIKE 'DISCOVERY%'
+	--END
+
+	--IF @ServerName IS NULL AND @ServerGroup IS NULL
+	--	BEGIN
+	--		INSERT serverList(serverName, linkedServerName) 
+	--		SELECT DISTINCT data_source, name FROM sys.servers
+	--		WHERE data_source NOT IN (SELECT DISTINCT serverName FROM serverList)
+	--		AND name LIKE 'DISCOVERY%'
+	--	END
+
+	--WHILE @X <= (SELECT COUNT(*) FROM dbo.serverList)
+	--BEGIN
+		SELECT @linkedServerName = '[' + linkedServerName + ']' FROM dbo.serverList 
+		WHERE serverID = @serverID
+
+		If @GetDaysUp = 1
+			BEGIN
+				SELECT @SQL = '
+			INSERT
+				dbo.serverStartDate
+				(
+					serverID
+				,	startDate
+				)
+			SELECT
+				' + CONVERT(VARCHAR(MAX),@serverID) +
+				',	d.create_date
+			FROM
+				' + @linkedServerName + '.master.sys.databases d
+			INNER JOIN dbo.serverList s ON s.ServerID = ' + CONVERT(VARCHAR(MAX),@serverID) +
+			'
+			LEFT JOIN dbo.serverStartDate ssd ON ssd.serverID = ' + CONVERT(VARCHAR(MAX),@serverID) +
+			' AND ssd.startDate = d.create_Date
+			WHERE
+				ssd.serverStartID IS NULL AND
+				d.name = ''tempdb'''
+			
+			-- PRINT @SQL
+			EXEC (@SQL)
+
+			IF @@ROWCOUNT > 0
+				BEGIN
+					PRINT 'New startdate record inserted.'
+				END
+
+			RETURN
+			
+		END
+
+		SELECT @SQL = '
+		DECLARE @ServerVersion NVARCHAR(MAX)
+		SELECT @ServerVersion = CONVERT(NVARCHAR(MAX),(select * from openquery(' + @linkedServerName + ',''SELECT @@VERSION'')));
+
+		UPDATE
+			s
+		SET
+			s.serverVersion = @ServerVersion,
+			s.updated = GETDATE()
+		FROM
+			dbo.serverList s 
+		WHERE
+			s.ServerID = ' + CONVERT(VARCHAR(MAX),@serverID)
+
+		EXEC (@SQL)
+
+		SELECT @serverVersion =
+			CASE
+				WHEN SL.serverVersion LIKE '%Microsoft SQL Server 2012%' THEN 2012
+				WHEN SL.serverVersion LIKE '%Microsoft SQL Server 2008%' THEN 2008
+				WHEN SL.serverVersion LIKE '%Microsoft SQL Server 2005%' THEN 2005
+			END
+		FROM
+			serverList SL
+		WHERE
+			SL.serverID = @serverID
+
+		PRINT 'ServerID: ' + CONVERT(VARCHAR(20),@serverID)
+		PRINT 'ServerName: ' + @serverName
+		PRINT 'SQL Version: ' + CONVERT(VARCHAR(20),@serverVersion)
+
+		UPDATE
+			sl
+		SET
+			sl.virtual_machine_type_desc = 'HYPERVISOR'
+		FROM
+			dbo.serverList sl
+		WHERE
+			sl.serverVersion LIKE '%HYPERVISOR%'
+			AND ISNULL(sl.virtual_machine_type_desc,'') <> 'HYPERVISOR'
+
+		IF @serverVersion = 2005
+		BEGIN
+			SELECT @SQL = '
+			UPDATE
+				s
+			SET
+				s.cpu_count = oi.cpu_count,
+				s.hyperthread_ratio = oi.hyperthread_ratio,
+				s.physical_memory_in_mb = oi.physical_memory_in_bytes /1024 /1024
+			FROM
+				' + @linkedServerName + '.master.sys.dm_os_sys_info oi
+			INNER JOIN dbo.serverList s ON s.ServerID = ' + CONVERT(VARCHAR(MAX),@serverID)
+		END
+
+		IF @serverVersion = 2008
+		BEGIN
+			SELECT @SQL = '
+			UPDATE
+				s
+			SET
+				s.cpu_count = oi.cpu_count,
+				s.hyperthread_ratio = oi.hyperthread_ratio,
+				s.physical_memory_in_mb = oi.physical_memory_in_bytes /1024 /1024,
+				s.sqlserver_start_time = oi.sqlserver_start_time--,
+				--s.affinity_type_desc = oi.affinity_type_desc
+			FROM
+				' + @linkedServerName + '.master.sys.dm_os_sys_info oi
+			INNER JOIN dbo.serverList s ON s.ServerID = ' + CONVERT(VARCHAR(MAX),@serverID)
+		END
+
+		IF @serverVersion = 2012
+		BEGIN
+			SELECT @SQL = '
+			UPDATE
+				s
+			SET
+				s.cpu_count = oi.cpu_count,
+				s.hyperthread_ratio = oi.hyperthread_ratio,
+				s.physical_memory_in_mb = oi.physical_memory_kb /1024,
+				s.available_page_file_mb = oi.virtual_memory_kb /1024,
+				s.sqlserver_start_time = oi.sqlserver_start_time,
+				s.affinity_type_desc = oi.affinity_type_desc,
+				s.virtual_machine_type_desc = oi.virtual_machine_type_desc
+			FROM
+				' + @linkedServerName + '.master.sys.dm_os_sys_info oi
+			INNER JOIN dbo.serverList s ON s.ServerID = ' + CONVERT(VARCHAR(MAX),@serverID)
+		END
+
+		-- PRINT @SQL
+		EXEC (@SQL)
+
+		IF @serverVersion = 2005
+			BEGIN
+			
+			SELECT @SQL = '
+			INSERT dbo.sysDatabase
+				(
+				serverID
+				,serverName
+				,name
+				,database_id
+				,source_database_id
+				,owner_sid
+				,create_date
+				,compatibility_level
+				,collation_name
+				,user_access
+				,user_access_desc
+				,is_read_only
+				,is_auto_close_on
+				,is_auto_shrink_on
+				,state
+				,state_desc
+				,is_in_standby
+				,is_cleanly_shutdown
+				,is_supplemental_logging_enabled
+				,snapshot_isolation_state
+				,snapshot_isolation_state_desc
+				,is_read_committed_snapshot_on
+				,recovery_model
+				,recovery_model_desc
+				,page_verify_option
+				,page_verify_option_desc
+				,is_auto_create_stats_on
+				,is_auto_update_stats_on
+				,is_auto_update_stats_async_on
+				,is_ansi_null_default_on
+				,is_ansi_nulls_on
+				,is_ansi_padding_on
+				,is_ansi_warnings_on
+				,is_arithabort_on
+				,is_concat_null_yields_null_on
+				,is_numeric_roundabort_on
+				,is_quoted_identifier_on
+				,is_recursive_triggers_on
+				,is_cursor_close_on_commit_on
+				,is_local_cursor_default
+				,is_fulltext_enabled
+				,is_trustworthy_on
+				,is_db_chaining_on
+				,is_parameterization_forced
+				,is_master_key_encrypted_by_server
+				,is_published
+				,is_subscribed
+				,is_merge_published
+				,is_distributor
+				,is_sync_with_backup
+				,service_broker_guid
+				,is_broker_enabled
+				,log_reuse_wait
+				,log_reuse_wait_desc
+				,is_date_correlation_on
+				--,is_cdc_enabled
+				--,is_encrypted
+				--,is_honor_broker_priority_on
+				,is_ms_shipped
+				)
+			SELECT
+				s.serverID
+				,s.serverName
+				,msd.name
+				,msd.database_id
+				,msd.source_database_id
+				,msd.owner_sid
+				,msd.create_date
+				,msd.compatibility_level
+				,msd.collation_name
+				,msd.user_access
+				,msd.user_access_desc
+				,msd.is_read_only
+				,msd.is_auto_close_on
+				,msd.is_auto_shrink_on
+				,msd.state
+				,msd.state_desc
+				,msd.is_in_standby
+				,msd.is_cleanly_shutdown
+				,msd.is_supplemental_logging_enabled
+				,msd.snapshot_isolation_state
+				,msd.snapshot_isolation_state_desc
+				,msd.is_read_committed_snapshot_on
+				,msd.recovery_model
+				,msd.recovery_model_desc
+				,msd.page_verify_option
+				,msd.page_verify_option_desc
+				,msd.is_auto_create_stats_on
+				,msd.is_auto_update_stats_on
+				,msd.is_auto_update_stats_async_on
+				,msd.is_ansi_null_default_on
+				,msd.is_ansi_nulls_on
+				,msd.is_ansi_padding_on
+				,msd.is_ansi_warnings_on
+				,msd.is_arithabort_on
+				,msd.is_concat_null_yields_null_on
+				,msd.is_numeric_roundabort_on
+				,msd.is_quoted_identifier_on
+				,msd.is_recursive_triggers_on
+				,msd.is_cursor_close_on_commit_on
+				,msd.is_local_cursor_default
+				,msd.is_fulltext_enabled
+				,msd.is_trustworthy_on
+				,msd.is_db_chaining_on
+				,msd.is_parameterization_forced
+				,msd.is_master_key_encrypted_by_server
+				,msd.is_published
+				,msd.is_subscribed
+				,msd.is_merge_published
+				,msd.is_distributor
+				,msd.is_sync_with_backup
+				,msd.service_broker_guid
+				,msd.is_broker_enabled
+				,msd.log_reuse_wait
+				,msd.log_reuse_wait_desc
+				,msd.is_date_correlation_on
+				--,msd.is_cdc_enabled
+				--,msd.is_encrypted
+				--,msd.is_honor_broker_priority_on
+				,CASE
+					WHEN msd.name IN (''master'',''model'',''msdb'',''tempdb'',''ReportServer'',''ReportServerTempDB'',''Distribution'') THEN 1
+					ELSE 0
+				END AS is_ms_shipped
+			FROM ' + @linkedServerName + '.master.sys.databases msd
+			INNER JOIN dbo.serverList s ON s.ServerID = ' + CONVERT(VARCHAR(MAX),@serverID)
+
+		END
+
+		IF @serverVersion > 2005
+			BEGIN
+			
+			SELECT @SQL = '
+			INSERT dbo.sysDatabase
+				(
+				serverID
+				,serverName
+				,name
+				,database_id
+				,source_database_id
+				,owner_sid
+				,create_date
+				,compatibility_level
+				,collation_name
+				,user_access
+				,user_access_desc
+				,is_read_only
+				,is_auto_close_on
+				,is_auto_shrink_on
+				,state
+				,state_desc
+				,is_in_standby
+				,is_cleanly_shutdown
+				,is_supplemental_logging_enabled
+				,snapshot_isolation_state
+				,snapshot_isolation_state_desc
+				,is_read_committed_snapshot_on
+				,recovery_model
+				,recovery_model_desc
+				,page_verify_option
+				,page_verify_option_desc
+				,is_auto_create_stats_on
+				,is_auto_update_stats_on
+				,is_auto_update_stats_async_on
+				,is_ansi_null_default_on
+				,is_ansi_nulls_on
+				,is_ansi_padding_on
+				,is_ansi_warnings_on
+				,is_arithabort_on
+				,is_concat_null_yields_null_on
+				,is_numeric_roundabort_on
+				,is_quoted_identifier_on
+				,is_recursive_triggers_on
+				,is_cursor_close_on_commit_on
+				,is_local_cursor_default
+				,is_fulltext_enabled
+				,is_trustworthy_on
+				,is_db_chaining_on
+				,is_parameterization_forced
+				,is_master_key_encrypted_by_server
+				,is_published
+				,is_subscribed
+				,is_merge_published
+				,is_distributor
+				,is_sync_with_backup
+				,service_broker_guid
+				,is_broker_enabled
+				,log_reuse_wait
+				,log_reuse_wait_desc
+				,is_date_correlation_on
+				,is_cdc_enabled
+				,is_encrypted
+				,is_honor_broker_priority_on
+				,is_ms_shipped
+				)
+			SELECT
+				s.serverID
+				,s.serverName
+				,msd.name
+				,msd.database_id
+				,msd.source_database_id
+				,msd.owner_sid
+				,msd.create_date
+				,msd.compatibility_level
+				,msd.collation_name
+				,msd.user_access
+				,msd.user_access_desc
+				,msd.is_read_only
+				,msd.is_auto_close_on
+				,msd.is_auto_shrink_on
+				,msd.state
+				,msd.state_desc
+				,msd.is_in_standby
+				,msd.is_cleanly_shutdown
+				,msd.is_supplemental_logging_enabled
+				,msd.snapshot_isolation_state
+				,msd.snapshot_isolation_state_desc
+				,msd.is_read_committed_snapshot_on
+				,msd.recovery_model
+				,msd.recovery_model_desc
+				,msd.page_verify_option
+				,msd.page_verify_option_desc
+				,msd.is_auto_create_stats_on
+				,msd.is_auto_update_stats_on
+				,msd.is_auto_update_stats_async_on
+				,msd.is_ansi_null_default_on
+				,msd.is_ansi_nulls_on
+				,msd.is_ansi_padding_on
+				,msd.is_ansi_warnings_on
+				,msd.is_arithabort_on
+				,msd.is_concat_null_yields_null_on
+				,msd.is_numeric_roundabort_on
+				,msd.is_quoted_identifier_on
+				,msd.is_recursive_triggers_on
+				,msd.is_cursor_close_on_commit_on
+				,msd.is_local_cursor_default
+				,msd.is_fulltext_enabled
+				,msd.is_trustworthy_on
+				,msd.is_db_chaining_on
+				,msd.is_parameterization_forced
+				,msd.is_master_key_encrypted_by_server
+				,msd.is_published
+				,msd.is_subscribed
+				,msd.is_merge_published
+				,msd.is_distributor
+				,msd.is_sync_with_backup
+				,msd.service_broker_guid
+				,msd.is_broker_enabled
+				,msd.log_reuse_wait
+				,msd.log_reuse_wait_desc
+				,msd.is_date_correlation_on
+				,msd.is_cdc_enabled
+				,msd.is_encrypted
+				,msd.is_honor_broker_priority_on
+				,CASE
+					WHEN msd.name IN (''master'',''model'',''msdb'',''tempdb'',''ReportServer'',''ReportServerTempDB'',''Distribution'') THEN 1
+					ELSE 0
+				END AS is_ms_shipped
+			FROM ' + @linkedServerName + '.master.sys.databases msd
+			INNER JOIN dbo.serverList s ON s.ServerID = ' + CONVERT(VARCHAR(MAX),@serverID)
+
+		END
+
+		-- PRINT @SQL
+		EXEC (@SQL)
+		
+		SELECT @SQL = '
+		INSERT dbo.sysMasterFiles
+			(
+			serverID
+			,serverName
+			,databaseID
+			,databaseName
+			,database_id
+			,file_id
+			,file_guid
+			,type
+			,type_desc
+			,data_space_id
+			,name
+			,physical_name
+			,state
+			,state_desc
+			,size
+			,max_size
+			,growth
+			,is_media_read_only
+			,is_read_only
+			,is_sparse
+			,is_percent_growth
+			,is_name_reserved
+			,create_lsn
+			,drop_lsn
+			,read_only_lsn
+			,read_write_lsn
+			,differential_base_lsn
+			,differential_base_guid
+			,differential_base_time
+			,redo_start_lsn
+			,redo_start_fork_guid
+			,redo_target_lsn
+			,redo_target_fork_guid
+			,backup_lsn
+			)
+		SELECT
+			s.serverID
+			,s.serverName
+			,sd.databaseID
+			,sd.Name
+			,mf.database_id
+			,mf.file_id
+			,mf.file_guid
+			,mf.type
+			,mf.type_desc
+			,mf.data_space_id
+			,mf.name
+			,mf.physical_name
+			,mf.state
+			,mf.state_desc
+			,mf.size
+			,mf.max_size
+			,mf.growth
+			,mf.is_media_read_only
+			,mf.is_read_only
+			,mf.is_sparse
+			,mf.is_percent_growth
+			,mf.is_name_reserved
+			,mf.create_lsn
+			,mf.drop_lsn
+			,mf.read_only_lsn
+			,mf.read_write_lsn
+			,mf.differential_base_lsn
+			,mf.differential_base_guid
+			,mf.differential_base_time
+			,mf.redo_start_lsn
+			,mf.redo_start_fork_guid
+			,mf.redo_target_lsn
+			,mf.redo_target_fork_guid
+			,mf.backup_lsn
+		FROM ' + @linkedServerName + '.master.sys.master_files mf
+		INNER JOIN dbo.serverList s ON s.ServerID = ' + CONVERT(VARCHAR(MAX),@serverID) + '
+		INNER JOIN dbo.sysDatabase sd on s.ServerID = sd.ServerID
+			AND sd.database_id = mf.database_id'
+
+		EXEC (@SQL)
+
+		IF @serverVersion = 2005
+		BEGIN
+
+			SELECT @SQL = '
+			UPDATE
+				s
+			SET
+				s.total_physical_memory_mb = m.physical_memory_in_bytes /1024 /1024,
+				s.virtual_memory_mb = m.virtual_memory_in_bytes /1024 /1024
+			FROM
+				' + @linkedServerName + '.master.sys.dm_os_sys_info m
+			INNER JOIN dbo.serverList s ON s.ServerID = ' + CONVERT(VARCHAR(MAX),@serverID)
+
+		END
+		
+		IF @serverVersion > 2005
+		BEGIN
+		
+			SELECT @SQL = '
+			UPDATE
+				s
+			SET
+				s.total_physical_memory_mb = m.total_physical_memory_kb /1024,
+				s.available_physical_memory_mb = m.available_physical_memory_kb /1024,
+				-- s.virtual_memory_mb = m.virtual_memory_kb /1024, -- 2012 only
+				s.total_page_file_mb = m.total_page_file_kb /1024,
+				s.available_page_file_mb = m.available_page_file_kb /1024,
+				s.system_cache_mb = m.system_cache_kb /1024,
+				s.kernel_paged_pool_mb = m.kernel_paged_pool_kb /1024,
+				s.kernel_nonpaged_pool_mb = m.kernel_nonpaged_pool_kb /1024,
+				s.system_high_memory_signal_state = m.system_high_memory_signal_state,
+				s.system_low_memory_signal_state = m.system_low_memory_signal_state,
+				s.system_memory_state_desc = m.system_memory_state_desc
+			FROM
+				' + @linkedServerName + '.master.sys.dm_os_sys_memory m
+			INNER JOIN dbo.serverList s ON s.ServerID = ' + CONVERT(VARCHAR(MAX),@serverID)
+
+		END
+
+		EXEC (@SQL)
+
+		IF @serverVersion = 2005
+		BEGIN
+
+			SELECT @SQL = '
+			UPDATE
+				s
+			SET
+				s.sqlserver_start_time = d.create_date
+			FROM
+				' + @linkedServerName + '.master.sys.databases d
+			INNER JOIN dbo.serverList s ON s.ServerID = ' + CONVERT(VARCHAR(MAX),@serverID) +
+			'
+			WHERE
+				d.name = ''tempdb'''
+
+		END
+
+		EXEC (@SQL)
+
+		SELECT @SQL = '
+		INSERT
+			dbo.serverJobs
+			(
+			serverID
+			,serverName
+			,JobID
+			,JobName
+			,JobCategory
+			,JobOwner
+			,JEnabled
+			,SEnabled
+			,JobCreatedOn
+			,JobLastModifiedOn
+			,OriginatingServerName
+			,JobStartStepNo
+			,JobStartStepName
+			,IsScheduled
+			,JobScheduleID
+			,JobScheduleName
+			,JobDeletionCriterion
+			)
+		SELECT
+			  s.serverID
+			, s.serverName
+			, [sJOB].[job_id] AS [JobID]
+			, [sJOB].[name] AS [JobName]
+			, [sCAT].[name] AS [JobCategory]
+			, [sDBP].[name] AS [JobOwner]
+			, CASE [sJOB].[enabled]
+				WHEN 1 THEN ''Yes''
+				WHEN 0 THEN ''No''
+			  END AS [JEnabled]
+			, SSCH.[enabled] AS SEnabled
+			, [sJOB].[date_created] AS [JobCreatedOn]
+			, [sJOB].[date_modified] AS [JobLastModifiedOn]
+			, [sSVR].[name] AS [OriginatingServerName]
+			, [sJSTP].[step_id] AS [JobStartStepNo]
+			, [sJSTP].[step_name] AS [JobStartStepName]
+			, CASE
+				WHEN [sSCH].[schedule_uid] IS NULL THEN ''No''
+				ELSE ''Yes''
+			  END AS [IsScheduled]
+			, [sSCH].[schedule_uid] AS [JobScheduleID]
+			, [sSCH].[name] AS [JobScheduleName]
+			, CASE [sJOB].[delete_level]
+				WHEN 0 THEN ''Never''
+				WHEN 1 THEN ''On Success''
+				WHEN 2 THEN ''On Failure''
+				WHEN 3 THEN ''On Completion''
+			  END AS [JobDeletionCriterion]
+		FROM
+			' + @linkedServerName + '.[msdb].[dbo].[sysjobs] AS [sJOB]
+			INNER JOIN dbo.serverList s ON s.ServerID = ' + CONVERT(VARCHAR(MAX),@serverID) + '
+			LEFT JOIN ' + @linkedServerName + '.[msdb].[sys].[servers] AS [sSVR]
+				ON [sJOB].[originating_server_id] = [sSVR].[server_id]
+			LEFT JOIN ' + @linkedServerName + '.[msdb].[dbo].[syscategories] AS [sCAT]
+				ON [sJOB].[category_id] = [sCAT].[category_id]
+			LEFT JOIN ' + @linkedServerName + '.[msdb].[dbo].[sysjobsteps] AS [sJSTP]
+				ON [sJOB].[job_id] = [sJSTP].[job_id]
+				AND [sJOB].[start_step_id] = [sJSTP].[step_id]
+			LEFT JOIN ' + @linkedServerName + '.[msdb].[sys].[database_principals] AS [sDBP]
+				ON [sJOB].[owner_sid] = [sDBP].[sid]
+			LEFT JOIN ' + @linkedServerName + '.[msdb].[dbo].[sysjobschedules] AS [sJOBSCH]
+				ON [sJOB].[job_id] = [sJOBSCH].[job_id]
+			LEFT JOIN ' + @linkedServerName + '.[msdb].[dbo].[sysschedules] AS [sSCH]
+				ON [sJOBSCH].[schedule_id] = [sSCH].[schedule_id]
+		ORDER BY [JobName]'
+
+		EXEC (@SQL)
+
+		SELECT @SQL = '
+		INSERT dbo.sysDmOsPerformanceCounters
+			(
+			serverID
+			,object_name
+			,counter_name
+			,instance_name
+			,cntr_value
+			,cntr_type
+			)
+		SELECT
+			s.serverID
+			,pc.object_name
+			,pc.counter_name
+			,pc.instance_name
+			,pc.cntr_value
+			,pc.cntr_type
+		FROM ' + @linkedServerName + '.master.sys.dm_os_performance_counters pc
+		INNER JOIN dbo.serverList s ON s.ServerID = ' + CONVERT(VARCHAR(MAX),@serverID)
+
+		EXEC (@SQL)
+
+		UPDATE
+			s
+		SET
+			s.targetServerMemoryinMB = de1.targetServerMemoryinMB,
+			s.totalServerMemoryInMB = de2.totalServerMemoryInMB
+		FROM
+			dbo.serverList s
+		LEFT JOIN
+			(
+			SELECT
+				pc.cntr_Value * 1.00 / 1024 AS targetServerMemoryinMB,
+				pc.serverId
+			FROM
+				dbo.sysDMosPerformanceCounters pc
+			WHERE
+				pc.serverID = @serverID AND
+				pc.counter_name LIKE '%Target Server Memory (KB)%'
+			) de1 ON s.serverID = de1.serverId
+		LEFT JOIN
+			(
+			SELECT
+				pc.cntr_Value * 1.00 / 1024 AS totalServerMemoryinMB,
+				pc.serverID
+			FROM
+				dbo.sysDMosPerformanceCounters pc
+			WHERE 		
+				pc.serverID = @serverID AND
+				pc.counter_name LIKE '%Total Server Memory (KB)%'
+			) de2 ON s.serverID = de2.serverID
+		WHERE
+			s.serverID = @serverID
+
+		SELECT @SQL = '
+		INSERT dbo.sysServerPrincipals
+			(
+			serverID
+			,serverName
+			,name
+			,principal_id
+			,sid
+			,type
+			,type_desc
+			,is_disabled
+			,create_date
+			,modify_date
+			,default_database_name
+			,default_language_name
+			,credential_id
+			)
+		SELECT
+			s.serverID
+			,s.serverName
+			,sp.name
+			,sp.principal_id
+			,sp.sid
+			,sp.type
+			,sp.type_desc
+			,sp.is_disabled
+			,sp.create_date
+			,sp.modify_date
+			,sp.default_database_name
+			,sp.default_language_name
+			,sp.credential_id
+		FROM ' + @linkedServerName + '.master.sys.server_principals sp
+		INNER JOIN dbo.serverList s ON s.ServerID = ' + CONVERT(VARCHAR(MAX),@serverID)
+
+		EXEC (@SQL)
+
+		SELECT @SQL = '
+		INSERT dbo.sysSQLLogins
+			(
+			serverID
+			,serverName
+			,name
+			,principal_id
+			,sid
+			,type
+			,type_desc
+			,is_disabled
+			,create_date
+			,modify_date
+			,default_database_name
+			,default_language_name
+			,credential_id
+			,is_policy_checked
+			,is_expiration_checked
+			,password_hash
+			)
+		SELECT
+			s.serverID
+			,s.serverName
+			,sl.name
+			,sl.principal_id
+			,sl.sid
+			,sl.type
+			,sl.type_desc
+			,sl.is_disabled
+			,sl.create_date
+			,sl.modify_date
+			,sl.default_database_name
+			,sl.default_language_name
+			,sl.credential_id
+			,sl.is_policy_checked
+			,sl.is_expiration_checked
+			,sl.password_hash
+		FROM ' + @linkedServerName + '.master.sys.sql_logins sl
+		INNER JOIN dbo.serverList s ON s.ServerID = ' + CONVERT(VARCHAR(MAX),@serverID)
+
+		EXEC (@SQL)
+
+		SELECT @SQL = '
+		INSERT dbo.sysDatabasePermissions
+			(
+			serverID
+			,serverName
+			,class
+			,class_desc
+			,major_id
+			,minor_id
+			,grantee_principal_id
+			,grantor_principal_id
+			,type
+			,permission_name
+			,state
+			,state_desc
+			)
+		SELECT
+			s.serverID
+			,s.serverName
+			,p.class
+			,p.class_desc
+			,p.major_id
+			,p.minor_id
+			,p.grantee_principal_id
+			,p.grantor_principal_id
+			,p.type
+			,p.permission_name
+			,p.state
+			,p.state_desc
+		FROM ' + @linkedServerName + '.master.sys.database_permissions p
+		INNER JOIN dbo.serverList s ON s.ServerID = ' + CONVERT(VARCHAR(MAX),@serverID)
+
+		EXEC (@SQL)
+
+		SELECT @SQL = '
+		INSERT dbo.sysServerPermissions
+			(
+			serverID
+			,serverName
+			,class
+			,class_desc
+			,major_id
+			,minor_id
+			,grantee_principal_id
+			,grantor_principal_id
+			,type
+			,permission_name
+			,state
+			,state_desc
+			)
+		SELECT
+			s.serverID
+			,s.serverName
+			,sp.class
+			,sp.class_desc
+			,sp.major_id
+			,sp.minor_id
+			,sp.grantee_principal_id
+			,sp.grantor_principal_id
+			,sp.type
+			,sp.permission_name
+			,sp.state
+			,sp.state_desc
+		FROM ' + @linkedServerName + '.master.sys.server_permissions sp
+		INNER JOIN dbo.serverList s ON s.ServerID = ' + CONVERT(VARCHAR(MAX),@serverID)
+
+		EXEC (@SQL)
+
+		SELECT @SQL = '
+		INSERT dbo.sysFulltextCatalog
+			(
+			serverID
+			,serverName
+			,fulltext_catalog_id
+			,name
+			,path
+			,is_default
+			,is_accent_sensitivity_on
+			,data_space_id
+			,file_id
+			,principal_id
+			--,is_importing
+			)
+		SELECT
+			s.serverID
+			,s.serverName
+			,c.fulltext_catalog_id
+			,c.name
+			,c.path
+			,c.is_default
+			,c.is_accent_sensitivity_on
+			,c.data_space_id
+			,c.file_id
+			,c.principal_id
+			--,c.is_importing
+		FROM ' + @linkedServerName + '.master.sys.fulltext_catalogs c
+		INNER JOIN dbo.serverList s ON s.ServerID = ' + CONVERT(VARCHAR(MAX),@serverID)
+
+		EXEC (@SQL)
+		
+		SELECT @SQL = '
+		INSERT dbo.sysLinkedLogins
+			(
+			serverID
+			,serverName
+			,server_id
+			,local_principal_id
+			,uses_self_credential
+			,remote_name
+			,modify_date
+			)
+		SELECT
+			s.serverID
+			,s.serverName
+			,ll.server_id
+			,ll.local_principal_id
+			,ll.uses_self_credential
+			,ll.remote_name
+			,ll.modify_date
+		FROM ' + @linkedServerName + '.master.sys.linked_logins ll
+		INNER JOIN dbo.serverList s ON s.ServerID = ' + CONVERT(VARCHAR(MAX),@serverID)
+
+		EXEC (@SQL)
+
+		SELECT @SQL = '
+		INSERT dbo.sysDatabaseMirroring
+			(
+			serverID
+			,serverName
+			,databaseID
+			,databaseName
+			,database_id
+			,mirroring_guid
+			,mirroring_state
+			,mirroring_state_desc
+			,mirroring_role
+			,mirroring_role_desc
+			,mirroring_role_sequence
+			,mirroring_safety_level
+			,mirroring_safety_level_desc
+			,mirroring_safety_sequence
+			,mirroring_partner_name
+			,mirroring_partner_instance
+			,mirroring_witness_name
+			,mirroring_witness_state
+			,mirroring_witness_state_desc
+			,mirroring_failover_lsn
+			,mirroring_connection_timeout
+			,mirroring_redo_queue
+			,mirroring_redo_queue_type
+			--,mirroring_end_of_log_lsn
+			--,mirroring_replication_lsn
+			)
+		SELECT
+			s.serverID
+			,s.serverName
+			,sd.databaseID
+			,sd.name
+			,dm.database_id
+			,dm.mirroring_guid
+			,dm.mirroring_state
+			,dm.mirroring_state_desc
+			,dm.mirroring_role
+			,dm.mirroring_role_desc
+			,dm.mirroring_role_sequence
+			,dm.mirroring_safety_level
+			,dm.mirroring_safety_level_desc
+			,dm.mirroring_safety_sequence
+			,dm.mirroring_partner_name
+			,dm.mirroring_partner_instance
+			,dm.mirroring_witness_name
+			,dm.mirroring_witness_state
+			,dm.mirroring_witness_state_desc
+			,dm.mirroring_failover_lsn
+			,dm.mirroring_connection_timeout
+			,dm.mirroring_redo_queue
+			,dm.mirroring_redo_queue_type
+			--,dm.mirroring_end_of_log_lsn
+			--,dm.mirroring_replication_lsn
+		FROM ' + @linkedServerName + '.master.sys.database_mirroring dm
+		INNER JOIN dbo.sysDatabase sd ON dm.database_id = sd.database_id
+			AND sd.serverID = ' + CONVERT(VARCHAR(MAX),@serverID) + '
+		INNER JOIN dbo.serverList s ON s.ServerID = ' + CONVERT(VARCHAR(MAX),@serverID)
+
+		EXEC (@SQL)
+
+		-- Database-Specific Code
+		DELETE @tblDatabaseList
+		INSERT @tblDatabaseList
+			(
+			databaseID,
+			database_id,
+			databaseName
+			)
+		SELECT
+			databaseID,
+			database_id,
+			name
+		FROM 
+			dbo.sysDatabase
+		WHERE serverID = @serverID
+			--AND name NOT IN ('ACT11Demo','ActEmailMessageStore')
+			--AND name NOT IN ('tempdb','ReportServerTempDB')
+
+				WHILE @Y <= (SELECT MAX(ID) FROM @tblDatabaseList)
+					BEGIN
+					-- insert database-specific code here.
+
+						SELECT
+							@linkedDatabaseID = databaseID,
+							@linkedDatabaseName = databaseName
+						FROM @tblDatabaseList
+						WHERE ID = @Y
+
+					SELECT @SQL = '
+						INSERT
+							dbo.sysDatabaseFiles
+							(
+							serverID
+							,serverName
+							,databaseID
+							,databaseName
+							,file_id
+							,file_guid
+							,type
+							,type_desc
+							,data_space_id
+							,name
+							,physical_name
+							,state
+							,state_desc
+							,size
+							,max_size
+							,freeSpace
+							,growth
+							,is_media_read_only
+							,is_read_only
+							,is_sparse
+							,is_percent_growth
+							,is_name_reserved
+							,create_lsn
+							,drop_lsn
+							,read_only_lsn
+							,read_write_lsn
+							,differential_base_lsn
+							,differential_base_guid
+							,differential_base_time
+							,redo_start_lsn
+							,redo_start_fork_guid
+							,redo_target_lsn
+							,redo_target_fork_guid
+							,backup_lsn
+							)
+						SELECT
+							s.serverID
+							,s.serverName
+							,' + CONVERT(VARCHAR(4),@linkedDatabaseID) + '
+							,''' + @linkedDatabaseName + '''
+							,df.file_id
+							,df.file_guid
+							,df.type
+							,df.type_desc
+							,df.data_space_id
+							,df.name
+							,df.physical_name
+							,df.state
+							,df.state_desc
+							,df.size
+							,df.max_size
+							,Cast(Cast(Round(cast(size as decimal) * 8.0/1024.0,2) as decimal(18,2)) -
+								Cast(FILEPROPERTY(name, ''SpaceUsed'') * 8.0/1024.0 as decimal(18,2)) as nvarchar) As FreeSpace
+							,df.growth
+							,df.is_media_read_only
+							,df.is_read_only
+							,df.is_sparse
+							,df.is_percent_growth
+							,df.is_name_reserved
+							,df.create_lsn
+							,df.drop_lsn
+							,df.read_only_lsn
+							,df.read_write_lsn
+							,df.differential_base_lsn
+							,df.differential_base_guid
+							,df.differential_base_time
+							,df.redo_start_lsn
+							,df.redo_start_fork_guid
+							,df.redo_target_lsn
+							,df.redo_target_fork_guid
+							,df.backup_lsn
+						FROM ' + @linkedServerName + '.[' + @linkedDatabaseName + '].sys.database_files df
+						INNER JOIN dbo.serverList s ON s.ServerID = ' + CONVERT(VARCHAR(MAX),@serverID)
+
+					EXEC (@SQL)
+
+					--IF @OmitDatabaseIndexStats = 0
+						BEGIN
+						SELECT @SQL = '
+							INSERT
+								vDatabaseIndexStats
+								(
+								serverID
+								,serverName
+								,databaseID
+								,databaseName
+								,objectID
+								,schemaName
+								,objectName
+								,indexName
+								,indexType
+								,is_ms_shipped
+								,type_desc
+								-- ,avg_fragmentation_in_percent
+								,percentOfDB
+								,PercentPagesFull
+								,used_page_count
+								,reserved_page_count
+								,user_seeks
+								,user_scans
+								,user_lookups
+								,user_updates
+								,efficiency
+								)
+							SELECT
+								s.serverID
+								,s.serverName
+								,' + CONVERT(VARCHAR(4),@linkedDatabaseID) + '
+								,''' + @linkedDatabaseName + '''
+								,ds.objectID
+								,ds.schemaName
+								,ds.objectName
+								,ds.indexName
+								,ds.indexType
+								,ds.is_ms_shipped
+								,ds.type_desc
+								-- ,ds.avg_fragmentation_in_percent
+								,ds.percentOfDB
+								,ds.PercentPagesFull
+								,ds.used_page_count
+								,ds.reserved_page_count
+								,ds.user_seeks
+								,ds.user_scans
+								,ds.user_lookups
+								,ds.user_updates
+								,ds.efficiency
+							FROM ' + @linkedServerName + '.[' + @linkedDatabaseName + '].dbo.database_index_stats_nf ds
+							INNER JOIN dbo.serverList s ON s.ServerID = ' + CONVERT(VARCHAR(MAX),@serverID)
+
+						IF @linkedDatabaseName NOT IN ('tempdb','ReportServerTempDB','AdventureWorks','Northwind')
+						BEGIN
+							-- PRINT @SQL
+							EXEC (@SQL)
+						END
+					END
+
+					SELECT @SQL = '
+						INSERT
+							vDatabaseStats
+							(
+							serverID
+							,serverName
+							,databaseID
+							,databaseName
+							,objectID
+							,schemaName
+							,objectName
+							,type
+							,percentOfDB
+							,PercentPagesFull
+							,row_count
+							,primary_keys_count
+							,is_replicated
+							,is_tran_published
+							,is_merge_published
+							,is_schema_published
+							,is_ms_shipped
+							,rowData
+							,lobData
+							,indexData
+							,in_row_data_page_count
+							,in_row_used_page_count
+							,in_row_reserved_page_count
+							,lob_used_page_count
+							,lob_reserved_page_count
+							,row_overflow_used_page_count
+							,row_overflow_reserved_page_count
+							,used_page_count
+							,reserved_page_count				)
+						SELECT
+							s.serverID
+							,s.serverName
+							,' + CONVERT(VARCHAR(4),@linkedDatabaseID) + '
+							,''' + @linkedDatabaseName + '''
+							,ds.objectID
+							,ds.schemaName
+							,ds.objectName
+							,ds.type
+							,ds.percentOfDB
+							,ds.PercentPagesFull
+							,ds.row_count
+							,ds.primary_keys_count
+							,ds.is_replicated
+							,ds.is_tran_published
+							,ds.is_merge_published
+							,ds.is_schema_published
+							,ds.is_ms_shipped
+							,ds.rowData
+							,ds.lobData
+							,ds.indexData
+							,ds.in_row_data_page_count
+							,ds.in_row_used_page_count
+							,ds.in_row_reserved_page_count
+							,ds.lob_used_page_count
+							,ds.lob_reserved_page_count
+							,ds.row_overflow_used_page_count
+							,ds.row_overflow_reserved_page_count
+							,ds.used_page_count
+							,ds.reserved_page_count
+						FROM ' + @linkedServerName + '.[' + @linkedDatabaseName + '].dbo.database_stats ds
+						INNER JOIN dbo.serverList s ON s.ServerID = ' + CONVERT(VARCHAR(MAX),@serverID)
+
+					IF @linkedDatabaseName NOT IN ('tempdb','ReportServerTempDB','AdventureWorks','Northwind')
+					BEGIN
+						EXEC (@SQL)
+					END
+
+					SELECT @Y = @Y + 1
+				END
+
+		INSERT dbo.serverListScan
+			(
+			serverID
+			,startTime
+			,endTime
+			,timeInSeconds
+			)
+		SELECT
+			@serverID
+			,@Now
+			,GETDATE()
+			,DATEDIFF(SECOND,@NOW,GETDATE())
+
+		-- SELECT @X = @X + 1
+
+	-- END
+END
+GO
