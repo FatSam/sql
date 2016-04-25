@@ -1,0 +1,449 @@
+SET NOCOUNT ON
+DECLARE @SQLtable TABLE
+       (
+       sqlID INT IDENTITY(1,1),
+       sqlData VARCHAR(MAX)
+       )
+ 
+/*
+       Generate list of constraints to port into destination/consolidation DB
+*/
+ 
+DECLARE @constraints TABLE
+       (
+       constraintID INT IDENTITY(1,1),
+       constraintType VARCHAR(50),
+       tableName VARCHAR(255),
+       columnName VARCHAR(255),
+       columnDefinition VARCHAR(255),
+       oldName VARCHAR(255)
+       )
+INSERT
+       @constraints
+       (
+       constraintType,
+       tableName,
+       columnName,
+       columnDefinition,
+       oldName
+       )
+SELECT 
+       constraintType = 'default',
+    tableName = t.name,
+    columnName = c.name,
+    dc.definition,
+       dc.name
+FROM sys.tables t
+INNER JOIN sys.default_constraints dc ON t.object_id = dc.parent_object_id
+INNER JOIN sys.columns c ON dc.parent_object_id = c.object_id AND c.column_id = dc.parent_column_id
+UNION
+SELECT 
+       constraintType = 'check',
+    TableName = t.Name,
+    ColumnName = c.Name,
+    cc.definition,
+       cc.Name
+FROM sys.tables t
+INNER JOIN sys.check_constraints cc ON t.object_id = cc.parent_object_id
+INNER JOIN sys.columns c ON cc.parent_object_id = c.object_id AND c.column_id = cc.parent_column_id
+ORDER BY
+       t.name,
+       c.name
+ 
+/*
+       Generate list of indexes to port into destination/consolidation DB
+*/
+ 
+DECLARE @indexes TABLE
+       (
+       tableIndexID INT IDENTITY(1,1),
+       schemaName VARCHAR(MAX),
+       tableName VARCHAR(MAX),
+       tableID INT,
+       indexName VARCHAR(MAX),
+       indexID INT,
+       isPrimaryKey INT,
+       isUnique INT,
+       indexType CHAR(1),
+       columnNames VARCHAR(MAX)
+       )
+INSERT
+       @indexes
+       (
+       schemaName,
+       tableName,
+       tableID,
+       indexName,
+       indexID,
+       isPrimaryKey,
+       isUnique,
+       indexType
+       )
+SELECT
+       schema_name(so.schema_id) as schemaName,
+       so.name as tableName,
+       so.object_id AS tableID,
+       si.name AS indexName,
+       si.index_id,
+       SI.is_primary_key,
+       si.is_unique,
+       si.[type]
+FROM sys.objects so
+INNER JOIN sys.indexes si ON so.object_id = si.object_id
+WHERE so.is_ms_shipped = 0
+       AND so.type_desc = 'USER_TABLE'
+       AND si.index_id > 0 -- skip heap
+ORDER BY
+       so.name,
+       si.index_id
+ 
+DECLARE @indexColumnName TABLE
+       (
+       tableIndexID INT,
+       indexColumnID int,
+       columnName VARCHAR(255),
+       isDescendingKey BIT
+       )
+INSERT
+       @indexColumnName
+       (
+       tableIndexID,
+       indexColumnID,
+       columnName,
+       isDescendingKey
+       )
+SELECT
+       i.tableIndexID,
+       ic.index_column_id,
+       sc.name as columnName,
+       ic.is_descending_key
+FROM sys.index_columns ic
+INNER JOIN @indexes i ON ic.index_id = i.indexID
+       AND ic.object_id = i.tableID
+INNER JOIN sys.columns sc ON ic.column_id = sc.column_id
+       AND ic.object_id = sc.object_id
+ 
+UPDATE
+       i
+SET
+       i.columnNames = de.columnNames
+FROM
+       @indexes I
+INNER JOIN
+(
+SELECT tableIndexID,
+       columnNames = STUFF((
+    SELECT ', ' + QUOTENAME(columnName) + CASE WHEN isDescendingKey = 1 THEN ' DESC' ELSE '' END
+       FROM @indexColumnName
+    WHERE tableIndexID = i.tableIndexID
+       ORDER BY indexColumnID
+    FOR XML PATH(''), TYPE).value('.[1]', 'nvarchar(max)'), 1, 2, '')
+FROM @indexColumnName i
+GROUP BY tableIndexID
+) DE ON i.tableIndexID = DE.tableIndexID
+ 
+/*
+       Generate list of tables to port into destination/consolidation DB
+*/
+ 
+DECLARE @tables TABLE
+       (
+       tableID INT IDENTITY(1,1),
+       hasPK INT,
+       objectID INT,
+       tableSchemaName VARCHAR(255),
+       tableName VARCHAR(255)
+       )
+INSERT
+       @tables
+       (
+       hasPK,
+       objectID,
+       tableSchemaName,
+       tableName
+       )
+SELECT 
+       CASE
+              WHEN primary_keys_count = 0 THEN 0
+              ELSE 1
+       END as hasPK,
+       objectID,
+       schemaName,
+       objectName
+FROM dbo.database_stats
+WHERE type = 'USER_TABLE'
+       AND objectName NOT IN ('sysdiagrams','dtproperties')
+ORDER BY objectName
+ 
+DECLARE @tableName VARCHAR(255)
+DECLARE @tableSchemaName VARCHAR(255)
+DECLARE @destTableName VARCHAR(255) = ''
+DECLARE @objectID INT
+ 
+DECLARE @hasPK INT
+DECLARE @primaryKey VARCHAR(255)
+ 
+DECLARE @parseSpot INT
+DECLARE @X INT = 1
+ 
+-- Constraint Variables
+DECLARE @curConstraintID INT = 0
+DECLARE @maxConstraintID INT = 0
+DECLARE @constraintType VARCHAR(50) = ''
+DECLARE @columnName VARCHAR(255) = ''
+DECLARE @columnDefinition VARCHAR(255) = ''
+ 
+-- Index Variables
+DECLARE @curIndexID INT = 0
+DECLARE @maxIndexID INT = 0
+DECLARE @schemaName VARCHAR(255) = ''
+DECLARE @indexName VARCHAR(255) = ''
+DECLARE @columnNames VARCHAR(255) = ''
+DECLARE @isPrimaryKey INT
+DECLARE @isUnique INT
+DECLARE @indexType INT
+ 
+DECLARE @SQL1 VARCHAR(MAX)
+DECLARE @SQL2 VARCHAR(MAX)
+DECLARE @SQL3 VARCHAR(MAX) -- Column List
+DECLARE @SQL4 VARCHAR(MAX)
+ 
+WHILE @X <= (SELECT MAX(tableID) FROM @tables)
+BEGIN
+ 
+SELECT @SQL1 = ''
+SELECT @SQL2 = ''
+SELECT @SQL3 = ''
+SELECT @SQL4 = ''
+SELECT @destTableName = ''
+ 
+SELECT
+       @tableName = tableName,
+       @tableSchemaName = tableSchemaName,
+       @hasPK = hasPK,
+       @objectID = objectID
+FROM @tables
+WHERE tableID = @X
+ 
+SELECT @SQL1 = '
+/*  ' + @tableName + '  */
+'
+ 
+SELECT @SQL1 = @SQL1 + '
+CREATE TABLE ' + QUOTENAME(@tableSchemaName) + '.' + QUOTENAME('compression_' + @tableName) + '
+       ('
+SELECT @SQL2 = COALESCE(@SQL2 + ',
+    ', '') + 
+    QUOTENAME(SC.NAME) + ' ' + UPPER(ST.NAME) + -- ' ' +
+    CASE
+              WHEN ST.NAME IN ('CHAR') 
+                     AND SC.max_length <> -1
+                     AND SC.is_nullable = 0
+              THEN '(' + CONVERT(VARCHAR(20),SC.max_length) + ') NOT NULL'
+              WHEN ST.NAME IN ('CHAR')
+                     AND SC.max_length <> -1
+                     AND SC.is_nullable = 1
+              THEN '(' + CONVERT(VARCHAR(20),SC.max_length) + ') NULL'
+              
+              WHEN ST.NAME IN ('NCHAR') 
+                     AND SC.max_length <> -1
+                     AND SC.is_nullable = 0
+              THEN '(' + CONVERT(VARCHAR(20),(SC.max_length /2)) + ') NOT NULL'
+              WHEN ST.NAME IN ('NCHAR') 
+                     AND SC.max_length <> -1
+                     AND SC.is_nullable = 1
+              THEN '(' + CONVERT(VARCHAR(20),(SC.max_length /2)) + ') NULL'
+ 
+              WHEN ST.NAME IN ('VARCHAR') 
+                     AND SC.max_length <> -1
+                     AND SC.is_nullable = 0
+              THEN '(' + CONVERT(VARCHAR(20),SC.max_length) + ') NOT NULL'
+              WHEN ST.NAME IN ('VARCHAR') 
+                     AND SC.max_length <> -1
+                     AND SC.is_nullable = 1
+              THEN '(' + CONVERT(VARCHAR(20),SC.max_length) + ') NULL'
+        WHEN ST.NAME IN ('NVARCHAR') 
+                     AND SC.max_length <> -1
+                     AND SC.is_nullable = 0
+              THEN '(' + CONVERT(VARCHAR(20),(SC.max_length / 2)) + ') NOT NULL'
+        WHEN ST.NAME IN ('NVARCHAR') 
+                     AND SC.max_length <> -1
+                     AND SC.is_nullable = 1
+              THEN '(' + CONVERT(VARCHAR(20),(SC.max_length / 2)) + ') NULL'
+              WHEN ST.NAME IN ('VARCHAR','NVARCHAR') 
+                     AND SC.max_length = -1
+                     AND SC.is_nullable = 0
+              THEN '(MAX) NOT NULL'
+              WHEN ST.NAME IN ('VARCHAR','NVARCHAR') 
+                     AND SC.max_length = -1
+                     AND SC.is_nullable = 1
+              THEN '(MAX) NULL'
+        WHEN SC.is_nullable = 0
+              THEN ' NOT NULL'
+              WHEN SC.is_nullable = 1
+              THEN ' NULL'
+              else ''
+    END
+FROM
+    SYS.OBJECTS SO
+INNER JOIN
+    SYS.COLUMNS SC ON SO.object_ID = SC.object_id
+INNER JOIN
+    SYS.TYPES ST ON SC.system_type_id = ST.system_type_id
+WHERE
+    SO.type = 'U' AND
+    SO.NAME = @tableName AND
+       ST.name <> 'SYSNAME' AND
+       ST.name <> 'TIMESTAMP' AND
+       SC.NAME <> 'SSMA_TimeStamp'
+ORDER BY
+    SC.column_id
+ 
+SELECT @SQL2 = RIGHT(@SQL2,LEN(@SQL2) - 6)
+ 
+SELECT @SQL1 = @SQL1 + @SQL2
+ 
+SELECT @SQL1 = @SQL1 + '
+    ) ON COMPRESS
+WITH (data_compression = page);
+GO'
+ 
+SELECT @SQL1 = @SQL1 +  '
+ 
+INSERT
+    ' + QUOTENAME(@tableSchemaName) + '.' + QUOTENAME('compression_' + @tableName) + '
+    (
+    '
+SELECT @SQL3 = COALESCE(@SQL3 + ',
+    ', '') +  QUOTENAME(SC.NAME)
+FROM
+    SYS.OBJECTS SO
+INNER JOIN
+    SYS.COLUMNS SC ON SO.object_ID = SC.object_id
+INNER JOIN
+    SYS.TYPES ST ON SC.system_type_id = ST.system_type_id
+WHERE
+    SO.type = 'U' AND
+    SO.NAME = @tableName AND
+       ST.name <> 'SYSNAME' AND
+       ST.name <> 'TIMESTAMP' AND
+       SC.NAME <> 'SSMA_TimeStamp'
+ORDER BY
+    SC.column_id
+SELECT @SQL3 = RIGHT(@SQL3,LEN(@SQL3) - 7)
+ 
+SELECT @SQL1 = @SQL1 + @SQL3 + '
+    )'
+SELECT @SQL1 = @SQL1 + '
+SELECT
+    ' + @SQL3 + '
+FROM
+    ' + QUOTENAME(@tableSchemaName) + '.' + QUOTENAME(@tableName) + '
+GO'
+ 
+/*
+       SCRIPT EXISTING CONSTRAINTS
+*/
+ 
+IF EXISTS (SELECT * FROM @constraints WHERE tableName = @tableName)
+       BEGIN
+              SELECT @curConstraintID = MIN(constraintID) FROM @constraints WHERE tableName = @tableName
+              SELECT @maxConstraintID = MAX(constraintID) FROM @constraints WHERE tableName = @tableName
+       
+              WHILE @curConstraintID <= @maxConstraintID
+                     BEGIN
+                           SELECT @SQL4 = ''
+                           SELECT
+                                  @constraintType = constraintType,
+                                  @columnName = columnName,
+                                  @columnDefinition = columnDefinition
+                           FROM @constraints WHERE constraintID = @curConstraintID
+ 
+                           SELECT @SQL4 = '
+ALTER TABLE dbo.' + QUOTENAME(@tableName) + ' WITH NOCHECK ADD CONSTRAINT ' +
+                                  CASE
+                                         WHEN @constraintType = 'check' THEN QUOTENAME('CF_' + REPLACE(@tableName,' ','') + '_' + @columnName) + ' CHECK ' + @columnDefinition
+                                         WHEN @constraintType = 'default' THEN QUOTENAME('DF_' + REPLACE(@tableName,' ','') + '_' + @columnName) + ' DEFAULT ' + @columnDefinition + ' FOR ' + QUOTENAME(@columnName)
+                                  END
+ 
+                           SELECT @SQL4 = @SQL4 + '
+GO
+                           '
+                           SELECT @SQL1 = @SQL1 + @SQL4
+ 
+                           SELECT @curConstraintID = @curConstraintID + 1
+                     END
+ 
+       END
+ 
+/*
+       SCRIPT EXISTING INDEXES
+*/
+ 
+IF EXISTS (SELECT * FROM @indexes WHERE tableName = @tableName)
+       BEGIN
+              SELECT @curIndexID = MIN(tableIndexID) FROM @indexes WHERE tableName = @tableName
+              SELECT @maxIndexID = MAX(tableIndexID) FROM @indexes WHERE tableName = @tableName
+ 
+              --SELECT @tableName
+              --SELECT @curIndexID
+              --SELECT @maxIndexID
+ 
+              WHILE @curIndexID <= @maxIndexID
+                     BEGIN
+                           SELECT @SQL4 = ''
+              
+                           SELECT
+                                  @schemaName = schemaName,
+                                  @indexName = indexName,
+                                  @isPrimaryKey = isPrimaryKey,
+                                  @isUnique = isUnique,
+                                  @indexType = indexType,
+                                  @columnNames = columnNames
+                           FROM
+                                  @indexes
+                           WHERE
+                                  tableIndexID = @curIndexID
+ 
+                           IF @isPrimaryKey = 1
+                                  BEGIN
+                                         SELECT @SQL4 = '
+ALTER TABLE ' + @schemaName + '.' + QUOTENAME('compression_' + @tableName) + ' ADD CONSTRAINT ' +
+       QUOTENAME('PK_' + @tableName) + ' PRIMARY KEY ' + CASE WHEN @indexType = 1 THEN 'CLUSTERED' ELSE 'NONCLUSTERED' END + '
+       (
+       ' + @columnNames + '
+       ) WITH (STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, DATA_COMPRESSION = PAGE) ON [COMPRESS]
+GO
+'
+                                  END
+ 
+                     IF @isPrimaryKey = 0
+                                  BEGIN
+                                         SELECT @SQL4 = '
+CREATE ' + CASE WHEN @isUnique = 1 THEN 'UNIQUE ' ELSE ' ' END + 
+CASE WHEN @indexType = 1 THEN 'CLUSTERED ' ELSE 'NONCLUSTERED ' END + 
+'INDEX ' + QUOTENAME(@indexName) + ' ON ' + @schemaName + '.' + QUOTENAME('compression_' + @tableName) + '
+(
+' + @columnNames + '
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, DATA_COMPRESSION = PAGE) ON [COMPRESS]
+GO
+'
+                                  END
+ 
+                           SELECT @SQL1 = @SQL1 + @SQL4
+ 
+                           SELECT @curIndexID = @curIndexID + 1
+                     END
+ 
+       END -- END OF CURINDEX WHILE LOOP
+ 
+       INSERT @SQLtable
+              (sqlData)
+       SELECT @SQL1
+ 
+------------------------------- END OF MAIN WHILE LOOP
+SELECT @X = @X + 1
+ 
+END
+ 
+SELECT sqlID, sqlData FROM @SQLtable
